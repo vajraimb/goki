@@ -10,6 +10,7 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as CloserRouteImport } from './routes/closer'
 import { Route as HkRouteImport } from './routes/hk'
 import { Route as LabRouteImport } from './routes/lab'
 import { Route as RulesRouteImport } from './routes/rules'
@@ -18,6 +19,11 @@ import { Route as IssuerIdRouteImport } from './routes/issuer.$id'
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const CloserRoute = CloserRouteImport.update({
+  id: '/closer',
+  path: '/closer',
   getParentRoute: () => rootRouteImport,
 } as any)
 const HkRoute = HkRouteImport.update({
@@ -43,6 +49,7 @@ const IssuerIdRoute = IssuerIdRouteImport.update({
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/closer': typeof CloserRoute
   '/hk': typeof HkRoute
   '/lab': typeof LabRoute
   '/rules': typeof RulesRoute
@@ -50,6 +57,7 @@ export interface FileRoutesByFullPath {
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/closer': typeof CloserRoute
   '/hk': typeof HkRoute
   '/lab': typeof LabRoute
   '/rules': typeof RulesRoute
@@ -58,6 +66,7 @@ export interface FileRoutesByTo {
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/closer': typeof CloserRoute
   '/hk': typeof HkRoute
   '/lab': typeof LabRoute
   '/rules': typeof RulesRoute
@@ -65,14 +74,15 @@ export interface FileRoutesById {
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/hk' | '/lab' | '/rules' | '/issuer/$id'
+  fullPaths: '/' | '/closer' | '/hk' | '/lab' | '/rules' | '/issuer/$id'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/hk' | '/lab' | '/rules' | '/issuer/$id'
-  id: '__root__' | '/' | '/hk' | '/lab' | '/rules' | '/issuer/$id'
+  to: '/' | '/closer' | '/hk' | '/lab' | '/rules' | '/issuer/$id'
+  id: '__root__' | '/' | '/closer' | '/hk' | '/lab' | '/rules' | '/issuer/$id'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  CloserRoute: typeof CloserRoute
   HkRoute: typeof HkRoute
   LabRoute: typeof LabRoute
   RulesRoute: typeof RulesRoute
@@ -86,6 +96,13 @@ declare module '@tanstack/react-router' {
       path: '/'
       fullPath: '/'
       preLoaderRoute: typeof IndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/closer': {
+      id: '/closer'
+      path: '/closer'
+      fullPath: '/closer'
+      preLoaderRoute: typeof CloserRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/hk': {
@@ -121,6 +138,7 @@ declare module '@tanstack/react-router' {
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  CloserRoute: CloserRoute,
   HkRoute: HkRoute,
   LabRoute: LabRoute,
   RulesRoute: RulesRoute,

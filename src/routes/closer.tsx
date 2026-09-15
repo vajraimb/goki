@@ -1,51 +1,63 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
+import { useEffect, useState } from "react";
 import { Shell } from "@/components/shell";
 import { Badge } from "@/components/ui/badge";
-import { getHkScored } from "@/lib/goki/hk-bluechips";
-import { pct } from "@/lib/goki/format";
+import { scoreHkCloser } from "@/lib/goki/closer-engine";
+import { compactP, pct } from "@/lib/goki/format";
 import { packOf, sectorLabel } from "@/lib/goki/packs";
-import { maxIdentityAbsRel, maxStrictAbsRel } from "@/lib/goki/rules";
-import type { ScoredIssuer } from "@/lib/goki/types";
+import type { CloserScore } from "@/lib/goki/types";
 import { cn } from "@/lib/cn";
 
-export const Route = createFileRoute("/")({ component: Home });
+export const Route = createFileRoute("/closer")({ component: CloserPage });
 
-function bandTone(band: ScoredIssuer["band"]) {
+function bandTone(band: CloserScore["band"]) {
   if (band === "exception") return "exception" as const;
   if (band === "review") return "review" as const;
   return "pass" as const;
 }
 
-function bandLabel(band: ScoredIssuer["band"]) {
-  if (band === "exception") return "例外";
+function bandLabel(band: CloserScore["band"]) {
+  if (band === "exception") return "未闭合";
   if (band === "review") return "复核";
-  return "通过";
+  return "已闭合";
 }
 
-function Home() {
-  const rows = getHkScored();
+function CloserPage() {
+  const [rows, setRows] = useState<CloserScore[] | null>(null);
+  useEffect(() => {
+    setRows(scoreHkCloser());
+  }, []);
+
+  if (!rows) {
+    return (
+      <Shell>
+        <p className="font-mono text-xs tracking-[0.18em] text-muted uppercase">Closer-Net</p>
+        <h1 className="mt-1 font-display text-4xl tracking-tight">附注闭合</h1>
+        <p className="mt-3 text-sm text-ink-soft">正在编译通用头和银行头…</p>
+      </Shell>
+    );
+  }
+
   const nEx = rows.filter((r) => r.band === "exception").length;
   const nRev = rows.filter((r) => r.band === "review").length;
   const nPass = rows.filter((r) => r.band === "pass").length;
-  const nBank = rows.filter((r) => packOf(r.issuer) === "bank").length;
 
   return (
     <Shell>
       <div className="flex flex-col gap-6">
         <div>
           <p className="font-mono text-xs tracking-[0.18em] text-muted uppercase">
-            Hang Seng · FY2025 实报
+            Note closer · 港股实报
           </p>
-          <h1 className="mt-1 font-display text-4xl tracking-tight sm:text-5xl">年报勾稽队列</h1>
+          <h1 className="mt-1 font-display text-4xl tracking-tight sm:text-5xl">附注闭合</h1>
           <p className="mt-3 max-w-2xl text-sm leading-relaxed text-ink-soft">
-            十一条恒生蓝筹。银行（汇丰、恒生）走单独规则包：关掉毛利/存货/PPE，改测 ECL
-            与贷款净额。港交所标成交所，不套银行公式。硬恒等必须为零。
+            两个头，同一套 16→32→16→1。通用头看 N01–N08；银行头看 ECL 滚存、贷款净额、贷存比。合成语料上训，这里只给汇丰、恒生打银行分。
           </p>
         </div>
 
-        <dl className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+        <dl className="grid grid-cols-3 gap-2">
           <div className="rounded-lg bg-paper-2 px-4 py-3 shadow-[var(--shadow-border)]">
-            <dt className="text-xs text-muted">例外</dt>
+            <dt className="text-xs text-muted">未闭合</dt>
             <dd className="mt-1 font-mono text-lg tabular-nums text-exception">{nEx}</dd>
           </div>
           <div className="rounded-lg bg-paper-2 px-4 py-3 shadow-[var(--shadow-border)]">
@@ -53,12 +65,8 @@ function Home() {
             <dd className="mt-1 font-mono text-lg tabular-nums text-review">{nRev}</dd>
           </div>
           <div className="rounded-lg bg-paper-2 px-4 py-3 shadow-[var(--shadow-border)]">
-            <dt className="text-xs text-muted">通过</dt>
+            <dt className="text-xs text-muted">已闭合</dt>
             <dd className="mt-1 font-mono text-lg tabular-nums text-pass">{nPass}</dd>
-          </div>
-          <div className="rounded-lg bg-paper-2 px-4 py-3 shadow-[var(--shadow-border)]">
-            <dt className="text-xs text-muted">银行包</dt>
-            <dd className="mt-1 font-mono text-lg tabular-nums">{nBank}</dd>
           </div>
         </dl>
 
@@ -67,49 +75,44 @@ function Home() {
             <table className="w-full min-w-[36rem] border-collapse text-sm">
               <thead>
                 <tr className="border-b border-rule text-left text-xs text-muted">
-                  <th className="px-3 py-2 font-medium">代码</th>
                   <th className="px-3 py-2 font-medium">发行人</th>
                   <th className="px-3 py-2 font-medium">规则包</th>
-                  <th className="px-3 py-2 text-right font-medium">硬恒等</th>
-                  <th className="px-3 py-2 text-right font-medium">口径残差</th>
+                  <th className="px-3 py-2 text-right font-medium">p(开口)</th>
+                  <th className="px-3 py-2 text-right font-medium">最大残差</th>
                   <th className="px-3 py-2 font-medium">分诊</th>
                 </tr>
               </thead>
               <tbody>
                 {rows.map((s) => {
-                  const maxRel = s.maxRel ?? maxIdentityAbsRel(s.rules);
-                  const hard = maxStrictAbsRel(s.rules);
                   const pack = packOf(s.issuer);
                   return (
                     <tr key={s.issuer.id} className="border-b border-rule/70 last:border-0">
-                      <td className="px-3 py-2.5 font-mono text-xs tabular-nums text-muted">
-                        {s.issuer.ticker}
-                      </td>
                       <td className="px-3 py-2.5">
                         <Link
                           to="/issuer/$id"
                           params={{ id: s.issuer.id }}
-                          className="font-medium hover:text-forest"
+                          className="flex flex-col hover:text-forest"
                         >
-                          {s.issuer.name}
+                          <span className="font-medium">{s.issuer.name}</span>
+                          <span className="font-mono text-xs text-muted">{s.issuer.ticker}</span>
                         </Link>
                       </td>
                       <td className="px-3 py-2.5 text-ink-soft">
                         {sectorLabel(s.issuer)}
                         {pack === "bank" && (
-                          <span className="ml-1 font-mono text-xs text-muted">ECL</span>
+                          <span className="ml-1 font-mono text-xs text-muted">B01–B04</span>
                         )}
+                      </td>
+                      <td className="px-3 py-2.5 text-right font-mono tabular-nums">
+                        {compactP(s.pOpen)}
                       </td>
                       <td
                         className={cn(
                           "px-3 py-2.5 text-right font-mono tabular-nums",
-                          hard >= 0.01 ? "text-exception" : "text-muted",
+                          s.maxRel >= 0.05 ? "text-exception" : s.maxRel >= 0.01 ? "text-review" : "text-muted",
                         )}
                       >
-                        {pct(hard, 2)}
-                      </td>
-                      <td className="px-3 py-2.5 text-right font-mono tabular-nums">
-                        {pct(maxRel, 1)}
+                        {pct(s.maxRel, 2)}
                       </td>
                       <td className="px-3 py-2.5">
                         <Badge tone={bandTone(s.band)}>{bandLabel(s.band)}</Badge>

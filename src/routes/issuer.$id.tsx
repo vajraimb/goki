@@ -1,34 +1,30 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useState } from "react";
 import { Shell } from "@/components/shell";
+import { NoteCloser } from "@/components/note-closer";
 import { StatementTable } from "@/components/statement-table";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/cn";
-import { useEngagement } from "@/lib/goki/engagement-context";
-import { issuerFeatures } from "@/lib/goki/features";
 import { compactP, pct, wan, aeFmt } from "@/lib/goki/format";
 import { findHk } from "@/lib/goki/hk-bluechips";
-import { BS_LINES, CF_LINES, IS_LINES } from "@/lib/goki/lines";
+import { linesFor } from "@/lib/goki/lines";
 import { DISPOSITION_LABEL, useNotes, type Disposition } from "@/lib/goki/notes";
-import { reconR03, reconR07 } from "@/lib/goki/recon";
+import { packOf, PACK_LABEL, sectorLabel } from "@/lib/goki/packs";
+import { reconEcl, reconR03, reconR07 } from "@/lib/goki/recon";
 import { RULES, totalAssets, totalLE } from "@/lib/goki/rules";
-import { getIssuers } from "@/lib/goki/statements";
-import { INDUSTRY_LABEL, SIZE_LABEL, type Issuer } from "@/lib/goki/types";
+import { SIZE_LABEL, type Issuer } from "@/lib/goki/types";
 
 export const Route = createFileRoute("/issuer/$id")({ component: IssuerPage });
 
 function IssuerPage() {
   const { id } = Route.useParams();
-  const eng = useEngagement();
   const [tab, setTab] = useState<"bs" | "is" | "cf">("bs");
-  const showAnswers = useNotes((s) => s.showAnswers);
   const rec = useNotes((s) => s.byId[id]);
   const setStatus = useNotes((s) => s.setStatus);
   const setNote = useNotes((s) => s.setNote);
 
-  const hk = findHk(id);
-  const scored = hk ?? eng.issuers.find((s) => s.issuer.id === id);
+  const scored = findHk(id);
   if (!scored) {
     return (
       <Shell>
@@ -40,58 +36,52 @@ function IssuerPage() {
     );
   }
 
-  const live = hk ? scored.issuer : (getIssuers().find((item) => item.id === id) ?? scored.issuer);
-  const issuer = live;
-  const { rules } = hk ? { rules: scored.rules } : issuerFeatures(live);
-  const { pError, aeErr, cashPred, cashResidual, attribution, band } = scored;
+  const issuer = scored.issuer;
+  const { rules, pError, aeErr, cashResidual, attribution, band } = scored;
   const { curr, prior } = issuer;
   const assets = totalAssets(curr);
   const le = totalLE(curr);
-  const isHk = issuer.source === "hkex";
-  const backTo = isHk ? "/hk" : "/";
-  const backLabel = isHk ? "港股实报" : "队列";
+  const pack = packOf(issuer);
+  const lineSet = linesFor(pack);
 
   return (
     <Shell>
       <div className="flex flex-col gap-6">
         <div>
-          <Link to={backTo} className="text-sm text-muted hover:text-ink">
-            {backLabel}
+          <Link to="/" className="text-sm text-muted hover:text-ink">
+            队列
           </Link>
           <div className="mt-3 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
             <div>
               <p className="font-mono text-xs tabular-nums text-muted">{issuer.ticker}</p>
               <h1 className="font-display text-4xl tracking-tight">{issuer.name}</h1>
               <p className="mt-1 text-sm text-ink-soft">
-                {INDUSTRY_LABEL[issuer.industry]} · {SIZE_LABEL[issuer.size]} · 资产 {wan(assets)}
+                {sectorLabel(issuer)} · {SIZE_LABEL[issuer.size]} · 资产 {wan(assets)}
                 {issuer.periodLabel ? ` · ${issuer.periodLabel}` : ""}
               </p>
             </div>
             <div className="flex flex-wrap gap-2">
+              {pack !== "generic" && <Badge tone="forest">{PACK_LABEL[pack]}包</Badge>}
               <Badge tone={band === "exception" ? "exception" : band === "review" ? "review" : "pass"}>
                 {band === "exception" ? "例外" : band === "review" ? "复核" : "通过"}
               </Badge>
-              <Badge>
-                {isHk ? "规则风险" : "P"} {compactP(pError)}
-              </Badge>
+              <Badge>规则风险 {compactP(pError)}</Badge>
               <Badge>AE {aeFmt(aeErr)}</Badge>
-              {isHk && <Badge tone="mute">{issuer.currency}</Badge>}
-              {showAnswers && !isHk && (
-                <Badge tone={issuer.inject === "true_error" ? "exception" : "mute"}>
-                  {issuer.inject === "true_error"
-                    ? `真错误 ${issuer.errorKinds.join(" / ")}`
-                    : issuer.inject === "rounding"
-                      ? "注入：舍入"
-                      : issuer.inject === "reclass"
-                        ? "注入：重分类"
-                        : "注入：干净"}
-                </Badge>
-              )}
+              <Badge tone="mute">{issuer.currency}</Badge>
             </div>
           </div>
         </div>
 
-        {isHk && issuer.caveats && issuer.caveats.length > 0 && (
+        {pack === "bank" && (
+          <aside className="rounded-lg bg-forest px-4 py-3 text-sm leading-relaxed text-forest-fg">
+            <p className="font-medium">银行规则包</p>
+            <p className="mt-1 text-forest-fg/80">
+              毛利、存货周转、固定资产滚存、简化间接法已关掉。改测 ECL 准备滚存（B01）、贷款总额−准备=净额（B02）、贷存比（B03）。
+            </p>
+          </aside>
+        )}
+
+        {issuer.caveats && issuer.caveats.length > 0 && (
           <aside className="rounded-lg bg-review-soft px-4 py-3 text-sm leading-relaxed text-ink">
             <p className="font-medium">映射说明</p>
             <ul className="mt-1 list-disc space-y-1 pl-4 text-ink-soft">
@@ -128,7 +118,7 @@ function IssuerPage() {
             {tab === "bs" && (
               <StatementTable
                 title="资产负债表"
-                lines={BS_LINES}
+                lines={lineSet.bs}
                 curr={curr}
                 prior={prior}
                 unit={issuer.unitLabel ?? "单位：万元"}
@@ -137,7 +127,7 @@ function IssuerPage() {
             {tab === "is" && (
               <StatementTable
                 title="利润表"
-                lines={IS_LINES}
+                lines={lineSet.is}
                 curr={curr}
                 prior={prior}
                 unit={issuer.unitLabel ?? "单位：万元"}
@@ -146,7 +136,7 @@ function IssuerPage() {
             {tab === "cf" && (
               <StatementTable
                 title="现金流量表"
-                lines={CF_LINES}
+                lines={lineSet.cf}
                 curr={curr}
                 prior={prior}
                 unit={issuer.unitLabel ?? "单位：万元"}
@@ -160,11 +150,11 @@ function IssuerPage() {
           <div className="flex min-w-0 flex-col gap-4">
             <section className="rounded-lg bg-paper-2 p-4 shadow-[var(--shadow-border)]">
               <h2 className="font-display text-xl">十条勾稽</h2>
-              {isHk && (
-                <p className="mt-1 text-xs text-ink-soft">
-                  硬恒等必须闭合。口径项的缺口要能用 OCI / 回购 / 处置 / 在建解释，解释不了再上升为例外。
-                </p>
-              )}
+              <p className="mt-1 text-xs text-ink-soft">
+                {pack === "bank"
+                  ? "硬恒等必须闭合。毛利/存货/PPE/简化 CFO/应收周转标成银行不适用，不进分诊。"
+                  : "硬恒等必须闭合。口径项的缺口要能用 OCI / 回购 / 处置 / 在建解释，解释不了再上升为例外。"}
+              </p>
               <ol className="mt-3 divide-y divide-rule">
                 {rules.map((r) => {
                   const def = RULES.find((d) => d.id === r.ruleId)!;
@@ -177,44 +167,53 @@ function IssuerPage() {
                           <span className="font-mono text-xs text-muted">{def.code}</span>{" "}
                           {def.name}{" "}
                           <span className="text-xs text-muted">
-                            {def.strict ? "硬" : def.kind === "analytic" ? "分析" : "口径"}
+                            {r.skipped
+                              ? "不适用"
+                              : def.strict
+                                ? "硬"
+                                : def.kind === "analytic"
+                                  ? "分析"
+                                  : "口径"}
                           </span>
                         </p>
                         <p
                           className={cn(
                             "font-mono text-xs tabular-nums",
-                            def.strict && hot
-                              ? "text-exception"
-                              : hot
-                                ? "text-review"
-                                : warm
+                            r.skipped
+                              ? "text-muted"
+                              : def.strict && hot
+                                ? "text-exception"
+                                : hot
                                   ? "text-review"
-                                  : "text-muted",
+                                  : warm
+                                    ? "text-review"
+                                    : "text-muted",
                           )}
                         >
-                          {pct(r.rel, 2)}
+                          {r.skipped ? "—" : pct(r.rel, 2)}
                         </p>
                       </div>
                       <p className="mt-0.5 font-mono text-xs break-all text-muted">{def.formula}</p>
-                      <p className="mt-0.5 font-mono text-xs tabular-nums text-ink-soft">
-                        残差 {wan(r.residual, 1)}
-                      </p>
+                      {r.skipped ? (
+                        <p className="mt-0.5 text-xs text-ink-soft">{r.skipReason}</p>
+                      ) : (
+                        <p className="mt-0.5 font-mono text-xs tabular-nums text-ink-soft">
+                          残差 {wan(r.residual, 1)}
+                        </p>
+                      )}
                     </li>
                   );
                 })}
               </ol>
             </section>
 
-            {isHk && <ReconCards issuer={issuer} />}
+            {pack === "bank" ? <BankReconCards issuer={issuer} /> : <ReconCards issuer={issuer} />}
+            <NoteCloser issuer={issuer} />
 
             <section className="rounded-lg bg-paper-2 p-4 shadow-[var(--shadow-border)]">
-              <h2 className="font-display text-xl">{isHk ? "残差归因" : "模型解释"}</h2>
+              <h2 className="font-display text-xl">残差归因</h2>
               <p className="mt-1 text-xs leading-relaxed text-ink-soft">
-                {isHk
-                  ? "按相对残差绝对值排序。正负只表示方向。现金滚存残差 " +
-                    pct(cashResidual, 2) +
-                    "。"
-                  : `对 logit 的输入显著性（∇z · x）。正值推向“真错误”。现金回归残差 ${pct(cashResidual, 2)}（预测 ${pct(cashPred, 1)} of assets）。`}
+                按相对残差绝对值排序。正负只表示方向。现金滚存残差 {pct(cashResidual, 2)}。
               </p>
               <ul className="mt-3 space-y-1.5">
                 {attribution.map((a) => (
@@ -240,9 +239,7 @@ function IssuerPage() {
             <section className="rounded-lg bg-paper-2 p-4 shadow-[var(--shadow-border)]">
               <h2 className="font-display text-xl">审计师处置</h2>
               <p className="mt-1 text-xs text-ink-soft">
-                {isHk
-                  ? "实报残差要写进底稿：是口径、是估计，还是真要上经理。"
-                  : "模型只排序。最终判定留在底稿里，随浏览器本地保存。"}
+                实报残差要写进底稿：是口径、是估计，还是真要上经理。
               </p>
               <div className="mt-3 grid grid-cols-2 gap-2">
                 {(Object.keys(DISPOSITION_LABEL) as Disposition[])
@@ -303,6 +300,50 @@ function ReconCards({ issuer }: { issuer: Issuer }) {
           <p className="mt-1 text-xs leading-relaxed text-ink-soft">{r7.hint}</p>
           <p className="mt-1 font-mono text-xs text-muted">
             完整：还要 ± 处置 ± 在建结转 ± 减值 ± 汇兑 ± 重估
+          </p>
+        </div>
+      </div>
+    </section>
+  );
+}
+
+function BankReconCards({ issuer }: { issuer: Issuer }) {
+  const r3 = reconR03(issuer);
+  const e = reconEcl(issuer);
+  return (
+    <section className="rounded-lg bg-paper-2 p-4 shadow-[var(--shadow-border)]">
+      <h2 className="font-display text-xl">银行缺口拆开</h2>
+      <p className="mt-1 text-xs leading-relaxed text-ink-soft">
+        PPE 滚存对银行关掉。下面是权益截断式和 ECL / 贷款净额。
+      </p>
+      <div className="mt-3 grid gap-3">
+        <div className="rounded-md bg-paper px-3 py-3 shadow-[var(--shadow-border)]">
+          <p className="font-mono text-xs text-muted">N01 权益（截断式仍缺 OCI/回购）</p>
+          <p className="mt-1 font-mono text-sm tabular-nums">
+            ΔRE {wan(r3.deltaRe, 1)} − (NI − 分红) {wan(r3.niMinusDiv, 1)} ={" "}
+            <span className="text-review">{wan(r3.gap, 1)}</span>
+          </p>
+          <p className="mt-1 text-xs leading-relaxed text-ink-soft">{r3.hint}</p>
+        </div>
+        <div className="rounded-md bg-paper px-3 py-3 shadow-[var(--shadow-border)]">
+          <p className="font-mono text-xs text-muted">B01 ECL 准备滚存</p>
+          <p className="mt-1 font-mono text-sm tabular-nums">
+            期末 {wan(e.end, 1)} − (期初 {wan(e.beg, 1)} + 计提 {wan(e.charge, 1)} − 核销{" "}
+            {wan(e.writeoff, 1)}) ={" "}
+            <span className={Math.abs(e.gap) / Math.max(Math.abs(e.end), 1) >= 0.05 ? "text-exception" : "text-review"}>
+              {wan(e.gap, 1)}
+            </span>
+          </p>
+          <p className="mt-1 text-xs leading-relaxed text-ink-soft">{e.hint}</p>
+        </div>
+        <div className="rounded-md bg-paper px-3 py-3 shadow-[var(--shadow-border)]">
+          <p className="font-mono text-xs text-muted">B02 贷款净额</p>
+          <p className="mt-1 font-mono text-sm tabular-nums">
+            总额 {wan(e.gross, 1)} − ECL {wan(e.end, 1)} − 净额 {wan(e.net, 1)} ={" "}
+            <span className={Math.abs(e.loanGap) < 1 ? "text-pass" : "text-exception"}>{wan(e.loanGap, 1)}</span>
+          </p>
+          <p className="mt-1 font-mono text-xs text-muted">
+            覆盖率 {pct(e.coverage, 2)} · 贷存比 {pct(e.adr, 1)}
           </p>
         </div>
       </div>

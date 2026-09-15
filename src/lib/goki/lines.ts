@@ -1,4 +1,4 @@
-import type { YearBooks } from "./types";
+import type { RulePack, YearBooks } from "./types";
 
 export type Line = { key: keyof YearBooks; label: string; total?: boolean };
 
@@ -32,6 +32,30 @@ export const BS_LINES: Line[] = [
   { key: "re", label: "未分配利润" },
 ];
 
+export const BANK_IS_LINES: Line[] = [
+  { key: "revenue", label: "净经营收入" },
+  { key: "opex", label: "经营支出" },
+  { key: "da", label: "折旧" },
+  { key: "ebit", label: "经营利润" },
+  { key: "pretax", label: "除税前利润", total: true },
+  { key: "tax", label: "税项" },
+  { key: "ni", label: "除税后利润", total: true },
+  { key: "dividends", label: "股息" },
+];
+
+export const BANK_BS_LINES: Line[] = [
+  { key: "cash", label: "现金及央行结余" },
+  { key: "ar", label: "客户贷款（净额）" },
+  { key: "otherCa", label: "其他流动资产" },
+  { key: "ppe", label: "物业及设备" },
+  { key: "otherNca", label: "金融投资及其他" },
+  { key: "stDebt", label: "短期批发负债" },
+  { key: "ltDebt", label: "长期批发负债" },
+  { key: "otherL", label: "客户存款及其他负债" },
+  { key: "shareCap", label: "股本" },
+  { key: "re", label: "储备及未分配利润" },
+];
+
 export const CF_LINES: Line[] = [
   { key: "cfo", label: "经营活动现金流" },
   { key: "cfi", label: "投资活动现金流" },
@@ -40,3 +64,12 @@ export const CF_LINES: Line[] = [
   { key: "capex", label: "资本开支" },
   { key: "taxPaid", label: "已交所得税" },
 ];
+
+export function linesFor(pack: RulePack | undefined): {
+  is: Line[];
+  bs: Line[];
+  cf: Line[];
+} {
+  if (pack === "bank") return { is: BANK_IS_LINES, bs: BANK_BS_LINES, cf: CF_LINES };
+  return { is: IS_LINES, bs: BS_LINES, cf: CF_LINES };
+}

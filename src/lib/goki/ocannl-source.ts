@@ -40,43 +40,48 @@ let () =
   let x_batch = make_x "x_batch" in
   let y_batch = make_y "y_batch" in
 
-  (* Tabular MLP: "@ " matmul + broadcast bias. No einsum beyond that. *)
   let%op h1 x = relu (({ w1 } * x) + { b1; o = [ hid1 ] }) in
   let%op h2 x = relu (({ w2 } * h1 x) + { b2; o = [ hid2 ] }) in
   let%op logit x = ({ w3 } * h2 x) + { b3; o = [ 1 ] } in
+`,
+  },
+  {
+    path: "bin/closer.ml",
+    title: "Closer-Net · 附注完整恒等",
+    body: `(* 16-d note residual vector. Identities N01–N08 include OCI, buybacks,
+   CIP, disposals, FX. Label = 1 only after the complete formula is filled
+   and still broken. *)
+let n_features = 16
+let hid1 = 32
+let hid2 = 16
+let init_seed = 7
 
-  let train_logit = logit x_batch in
-  (* Stable BCE-with-logits: max(z,0) - z*y + log(1+exp(-|z|)) *)
-  let%op abs_z = abs train_logit in
-  let%op bce =
-    ((relu train_logit - (train_logit *. y_batch) + log (1.0 + exp (neg abs_z)))
-    ++ "... => 0") /. !..batch_size
-  in
+let%op h1 x = relu (({ w1 } * x) + { b1; o = [ hid1 ] })
+let%op h2 x = relu (({ w2 } * h1 x) + { b2; o = [ hid2 ] })
+let%op logit x = ({ w3 } * h2 x) + { b3; o = [ 1 ] }
 
-  let update = Train.grad_update bce in
-  let steps = epochs * n_batches in
-  let%op learning_rate = 0.12 *. ((1.5 *. !..steps) - !@step_n) /. !..steps in
-  let sgd = Train.sgd_update ~learning_rate bce in
-  let ctx = Train.init_params (Context.auto ()) bindings bce in
-  let ctx, sgd_step =
-    Train.to_routine ctx bindings (Asgns.sequence [ update; sgd ])
-  in
-
-  (* Autoencoder — clean rows only. *)
-  let%op enc1 x = relu (({ we1 } * x) + { be1; o = [ 16 ] }) in
-  let%op z x = relu (({ we2 } * enc1 x) + { be2; o = [ 8 ] }) in
-  let%op recon t =
-    ({ wd2 } * relu (({ wd1 } * t) + { bd1; o = [ 16 ] })) + { bd2; o = [ 38 ] }
-  in
-  let%op ae_mse =
-    (((recon (z x_batch) - x_batch) *. (recon (z x_batch) - x_batch))
-    ++ "... => 0") /. !..(batch_size * n_features)
-  in
-
-  (* Direct regression: other subjects → 货币资金 / 资产. *)
-  let%op cash_hat x =
-    ({ wr2 } * relu (({ wr1 } * x) + { br1; o = [ 32 ] })) + { br2; o = [ 1 ] }
-  in
+(* N01 ΔRE − (NI − div + OCI − buyback + SBP + NCI + other) *)
+(* N02 PPE − (beg + add + CIP − DA − disp − impair + FX + reval) *)
+(* N03 Δcash − (netCf + fxCash) *)
+(* N04 debt − (beg + draw − repay + fxDebt) *)
+(* N05 taxPay − (beg + tax − paid + deferred) *)
+(* N06–N08 intangibles / ROU / provisions *)
+`,
+  },
+  {
+    path: "bin/bank_closer.ml",
+    title: "Bank-Closer · ECL / 贷款净额",
+    body: `(* Same 16→32→16→1 as generic closer. Slots are bank identities.
+   B01 ECL_end − (beg + charge − writeoff + recover + FX)
+   B02 loansGross − ECL − net_loans
+   B03 Δ(net_loans / deposits)   analytic
+   B04 Δ(ECL / loansGross)       analytic
+   PPE / GP / inventory are masked. Label = 1 only if a filled
+   identity still breaks. *)
+let n_features = 16
+let hid1 = 32
+let hid2 = 16
+let init_seed = 11
 `,
   },
   {

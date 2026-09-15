@@ -29,14 +29,14 @@ function LabPage() {
       </p>
       <h1 className="mt-1 font-display text-4xl tracking-tight sm:text-5xl">可复核的训练</h1>
       <p className="mt-3 max-w-2xl text-sm leading-relaxed text-ink-soft">
-        在 Kaggle 上 OCANNL 是负担，在审计底稿里它是资产。训练步编译成可读 routine，固定种子下 bit 级可复现。本页的曲线来自浏览器内的 cc 后端复刻，与{" "}
+        工作底稿只跑港股实报。下面的曲线来自合成语料上的 cc 复刻，用来固定种子和黄金文件，不进队列。与{" "}
         <span className="font-mono">ocaml/bin/goki.ml</span> 同一套结构。
         <a href="/goki-model-note.pdf" className="ml-1 text-forest underline underline-offset-2">
           模型说明 PDF
         </a>
       </p>
 
-      <div className="mt-8 grid gap-3 sm:grid-cols-3">
+      <div className="mt-8 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
         <Paradigm
           n="A"
           title="规则残差 + 小模型排序"
@@ -51,6 +51,11 @@ function LabPage() {
           n="C"
           title="直接回归"
           body="用其余科目回归货币资金 / 资产。残差超阈值即标记。可解释性最好。"
+        />
+        <Paradigm
+          n="D"
+          title="附注闭合头"
+          body="通用头 N01–N08；银行头 B01 ECL / B02 贷款净额。都是 16→32→16→1。合成样本上训，港股底稿上填。"
         />
       </div>
 

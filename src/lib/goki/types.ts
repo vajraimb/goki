@@ -22,6 +22,15 @@ export const INDUSTRY_LABEL: Record<Industry, string> = {
   trans: "交运",
 };
 
+export const RULE_PACKS = ["generic", "bank", "exchange"] as const;
+export type RulePack = (typeof RULE_PACKS)[number];
+
+export const PACK_LABEL: Record<RulePack, string> = {
+  generic: "通用",
+  bank: "银行",
+  exchange: "交易所",
+};
+
 export const SIZE_LABEL = {
   mega: "超大盘",
   large: "大盘",
@@ -39,7 +48,15 @@ export type ErrorKind =
   | "re_break"
   | "fake_rev"
   | "ppe_over"
-  | "tax_break";
+  | "tax_break"
+  | "note_eq"
+  | "note_ppe"
+  | "note_cash"
+  | "note_debt"
+  | "note_intan"
+  | "note_rou"
+  | "note_ecl"
+  | "note_loan";
 
 /** Amounts in 万元. */
 export interface YearBooks {
@@ -90,6 +107,48 @@ export interface Issuer {
   periodLabel?: string;
   unitLabel?: string;
   caveats?: string[];
+  priorNotes?: NoteBooks;
+  currNotes?: NoteBooks;
+  pack?: RulePack;
+}
+
+/** Note-level rollforward lines. Amounts in 万元. Stocks are period-end. */
+export interface NoteBooks {
+  oci: number;
+  buyback: number;
+  sbp: number;
+  nci: number;
+  otherEq: number;
+  ppeAdd: number;
+  ppeCip: number;
+  ppeDisp: number;
+  ppeImpair: number;
+  ppeFx: number;
+  ppeReval: number;
+  fxCash: number;
+  borrowDraw: number;
+  borrowRepay: number;
+  fxDebt: number;
+  deferredTaxAdj: number;
+  intan: number;
+  intanAdd: number;
+  intanAmort: number;
+  intanImpair: number;
+  rou: number;
+  rouAdd: number;
+  rouDep: number;
+  rouTerm: number;
+  prov: number;
+  provCharge: number;
+  provUse: number;
+  loansGross: number;
+  ecl: number;
+  eclCharge: number;
+  eclWriteoff: number;
+  eclRecover: number;
+  eclFx: number;
+  deposits: number;
+  nii: number;
 }
 
 export interface RuleDef {
@@ -110,6 +169,9 @@ export interface RuleResult {
   rel: number;
   yoy: number;
   priorRel: number;
+  skipped?: boolean;
+  skipReason?: string;
+  kind?: "identity" | "analytic";
 }
 
 export type FeatureRow = Float32Array;
@@ -125,6 +187,29 @@ export interface ScoredIssuer {
   attribution: { name: string; value: number }[];
   band: "exception" | "review" | "pass";
   maxRel?: number;
+}
+
+export interface CloserScore {
+  issuer: Issuer;
+  notes: NoteBooks;
+  rules: RuleResult[];
+  features: number[];
+  pOpen: number;
+  aeErr: number;
+  attribution: { name: string; value: number }[];
+  band: "exception" | "review" | "pass";
+  maxRel: number;
+}
+
+export interface CloserEngagement {
+  seed: number;
+  backend: string;
+  issuers: CloserScore[];
+  logs: EpochLog[];
+  metrics: Metrics;
+  routine: string;
+  golden: string;
+  featureNames: string[];
 }
 
 export interface EpochLog {

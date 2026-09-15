@@ -1,7 +1,9 @@
 import { issuerFeatures } from "./features";
 import { maxSoftAbsRel, maxStrictAbsRel, RULES, totalAssets } from "./rules";
+import { EMPTY_NOTES } from "./note-rules";
+import { evaluateMainRules, packOf } from "./packs";
 import { EMPTY_BOOKS } from "./statements";
-import type { Industry, Issuer, ScoredIssuer, YearBooks } from "./types";
+import type { Industry, Issuer, NoteBooks, RulePack, ScoredIssuer, YearBooks } from "./types";
 
 /** Millions of reporting currency → 万元. */
 function m(n: number): number {
@@ -131,9 +133,10 @@ const SPECS: Spec[] = [
     unitLabel: "万元美元",
     filingNote: "HSBC Holdings plc 2025 Annual Results（港交所公告，美元）",
     caveats: [
-      "贷款进应收账款，投资证券进其他资产（不进存货），客户存款进其他负债。",
-      "经营现金流未按简化间接法披露，R06 按公式轧平（未测）。R03 反映分红、回购与储备，不是账错。",
+      "贷款进应收账款（净额），投资证券进其他资产（不进存货），客户存款进其他负债。",
+      "银行包关掉毛利、存货周转、PPE 滚存、简化间接法 CFO。改测 ECL 滚存与贷款净额恒等。",
       "R02 用中央银行结余；与中国底稿「货币资金」不是同一口径。",
+      "2024 年末客户贷款 ECL 存量按年报「恒定汇率下增加 6 亿美元」倒推，不是比较栏原文。核销 36 亿为集团口径。",
     ],
     curr: {
       revenue: 68274, opex: 36428, da: 4916, ebit: 27996, pretax: 29907, tax: 6776, ni: 23131,
@@ -159,13 +162,14 @@ const SPECS: Spec[] = [
     unitLabel: "万港元",
     filingNote: "Hang Seng Bank 2025 Annual Report（港元）",
     caveats: [
-      "净经营收入映射为营业收入；银行没有营业成本/存货，R05、R10 近乎空转。",
-      "贷款与垫款进应收账款，客户存款进其他负债。R01 用资产=负债+权益轧平。",
+      "净经营收入映射为营业收入。客户贷款改为年报净额 7,873.49 亿，差额进其他资产。",
+      "银行包关掉毛利、存货、PPE、简化 CFO。ECL、贷款总额、存款按 2025 年报信贷附注填入。",
+      "贷存比 61.4%（上年 64.7%）与年报一致。ECL 滚存仍可能剩未单列的阶段迁徙/其他。",
     ],
     curr: {
       revenue: 42254, opex: 15590, da: 1800, ebit: 18608, interest: 700, pretax: 17908, tax: 2146, ni: 15762,
       dividends: 13000,
-      cash: 95000, ar: 980000, inv: 0, ppe: 28000, currentAssets: 720000, totalAssets: 1819113,
+      cash: 95000, ar: 787349, inv: 0, ppe: 28000, currentAssets: 720000, totalAssets: 1819113,
       ap: 18000, stDebt: 45000, ltDebt: 80000, shareCap: 9659, re: 162995,
       totalLiab: 1646459, totalEquity: 172654,
       capex: 2200,
@@ -173,7 +177,7 @@ const SPECS: Spec[] = [
     prior: {
       revenue: 41537, opex: 14200, da: 1700, ebit: 21558, interest: 544, pretax: 21014, tax: 2635, ni: 18379,
       dividends: 13000,
-      cash: 91000, ar: 970000, inv: 0, ppe: 27000, currentAssets: 700000, totalAssets: 1795196,
+      cash: 91000, ar: 819136, inv: 0, ppe: 27000, currentAssets: 700000, totalAssets: 1795196,
       ap: 17000, stDebt: 42000, ltDebt: 78000, shareCap: 9659, re: 159863,
       totalLiab: 1625674, totalEquity: 169522,
       capex: 2000,
@@ -446,6 +450,94 @@ const SPECS: Spec[] = [
   },
 ];
 
+/** Filing-sourced note lines, millions of reporting currency. Unmapped stays 0. */
+const DISCLOSED: Record<
+  string,
+  { curr?: Partial<Raw>; notes?: Partial<NoteBooks>; priorNotes?: Partial<NoteBooks> }
+> = {
+  "00005": {
+    notes: {
+      loansGross: 999091,
+      ecl: 10692,
+      eclCharge: 3850,
+      eclWriteoff: 3600,
+      deposits: 1800000,
+      nii: 34794,
+    },
+    priorNotes: {
+      loansGross: 940750,
+      ecl: 10092,
+      deposits: 1668100,
+    },
+  },
+  "00011": {
+    notes: {
+      loansGross: 806538,
+      ecl: 19189,
+      eclCharge: 8049,
+      eclWriteoff: 2766,
+      deposits: 1283341,
+      buyback: 1076,
+      nii: 28844,
+    },
+    priorNotes: {
+      loansGross: 832109,
+      ecl: 12973,
+      deposits: 1267021,
+    },
+  },
+  "00700": {
+    curr: { dividends: 41900, capex: 79198 },
+    notes: { buyback: 73400, oci: 45550, nci: 6565, ppeAdd: 79198 },
+  },
+  "01810": {
+    curr: { cfo: 34142, cfi: -71679, capex: 18200 },
+    notes: {
+      buyback: 6173,
+      otherEq: 39226,
+      ppeAdd: 12769,
+      ppeDisp: 13,
+      borrowDraw: 30378,
+      borrowRepay: 25081,
+    },
+  },
+  "03690": {
+    curr: { cfi: 29773, cff: 21243, netCf: 37201, capex: 13271 },
+    notes: { buyback: 365, ppeAdd: 13271, borrowDraw: 42232, borrowRepay: 16064 },
+  },
+  "00941": {
+    curr: { dividends: 102821 },
+    notes: { ppeAdd: 150878 },
+  },
+  "00883": {
+    notes: { ppeAdd: 118829 },
+  },
+  "00001": {
+    curr: { capex: 20945 },
+    notes: { ppeAdd: 20945 },
+  },
+  "00388": {
+    curr: { cfo: 25627, cfi: -5565, cff: -14635 },
+    notes: { ppeAdd: 1863, ppeCip: 2433 },
+  },
+  "00016": {
+    notes: { ppeAdd: 4000 },
+  },
+  "00002": {
+    notes: { ppeAdd: 12000 },
+  },
+};
+
+function notesOf(raw?: Partial<NoteBooks>): NoteBooks {
+  if (!raw) return { ...EMPTY_NOTES };
+  const n = { ...EMPTY_NOTES };
+  (Object.keys(raw) as (keyof NoteBooks)[]).forEach((k) => {
+    const v = raw[k];
+    if (v != null && Number.isFinite(v)) n[k] = m(v);
+  });
+  return n;
+}
+
 function bandHk(maxHard: number, maxSoft: number): ScoredIssuer["band"] {
   if (maxHard >= 0.01) return "exception";
   if (maxSoft >= 0.01) return "review";
@@ -454,43 +546,60 @@ function bandHk(maxHard: number, maxSoft: number): ScoredIssuer["band"] {
 
 export function buildHkIssuers(): Issuer[] {
   return SPECS.map((s) => {
+    const patch = DISCLOSED[s.ticker];
+    const currRaw = { ...s.curr, ...patch?.curr };
     const prior = books(s.prior);
-    const curr = books(s.curr);
-    if (s.curr.cfo == null) {
+    const curr = books(currRaw);
+    if (currRaw.cfo == null) {
       const dAr = curr.ar - prior.ar;
       const dInv = curr.inv - prior.inv;
       const dAp = curr.ap - prior.ap;
       curr.cfo = curr.ni + curr.da - dAr - dInv + dAp;
-      if (s.curr.cfi == null && s.curr.cff == null) {
+      if (currRaw.cfi == null && currRaw.cff == null) {
         curr.cfi = -curr.capex;
         curr.cff = curr.netCf - curr.cfo - curr.cfi;
       }
     }
-    if (s.curr.netCf == null) {
+    if (currRaw.netCf == null) {
       curr.netCf = curr.cash - prior.cash;
-      if (s.curr.cff == null) curr.cff = curr.netCf - curr.cfo - curr.cfi;
+      if (currRaw.cff == null) curr.cff = curr.netCf - curr.cfo - curr.cfi;
     }
+    const currNotes = notesOf(patch?.notes);
+    if (currRaw.netCf != null) {
+      currNotes.fxCash = curr.cash - prior.cash - curr.netCf;
+    }
+    const pack: RulePack = packOf({ industry: s.industry, ticker: s.ticker });
     return {
       id: `hk-${s.ticker}`,
       ticker: s.ticker,
       name: s.name,
       industry: s.industry,
+      pack,
       size: "mega" as const,
       inject: "clean" as const,
       errorKinds: [],
       prior,
       curr,
+      priorNotes: notesOf(patch?.priorNotes),
+      currNotes,
       source: "hkex" as const,
       currency: s.currency,
       periodLabel: s.periodLabel,
       unitLabel: s.unitLabel,
-      caveats: [...s.caveats, s.filingNote],
+      caveats: [
+        ...s.caveats,
+        s.filingNote,
+        pack === "bank"
+          ? "银行包：主表关掉毛利/存货/PPE/简化 CFO。附注测 ECL 滚存、贷款净额、贷存比。"
+          : "附注行只填年报已披露的回购、OCI、资本开支、借款提取/偿还。未披露的在建、处置、准备保持 0，完整式残差就是未映射缺口。",
+      ],
     };
   });
 }
 
 export function scoreHk(issuer: Issuer): ScoredIssuer {
-  const { features, rules } = issuerFeatures(issuer);
+  const { features } = issuerFeatures(issuer);
+  const rules = evaluateMainRules(issuer);
   const maxHard = maxStrictAbsRel(rules);
   const maxSoft = maxSoftAbsRel(rules);
   const pError = 1 / (1 + Math.exp(-12 * (maxHard - 0.008)));
@@ -519,13 +628,8 @@ export function scoreHk(issuer: Issuer): ScoredIssuer {
   };
 }
 
-let cached: ScoredIssuer[] | null = null;
-
 export function getHkScored(): ScoredIssuer[] {
-  if (!cached) {
-    cached = buildHkIssuers().map(scoreHk).sort((a, b) => (b.maxRel ?? 0) - (a.maxRel ?? 0));
-  }
-  return cached;
+  return buildHkIssuers().map(scoreHk).sort((a, b) => (b.maxRel ?? 0) - (a.maxRel ?? 0));
 }
 
 export function findHk(id: string): ScoredIssuer | undefined {

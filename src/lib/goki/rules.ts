@@ -180,7 +180,10 @@ export function evaluateRules(prior: YearBooks, curr: YearBooks): RuleResult[] {
 
 export function maxIdentityAbsRel(rules: RuleResult[]): number {
   let m = 0;
-  for (let i = 0; i < 8; i++) m = Math.max(m, Math.abs(rules[i]!.rel));
+  for (let i = 0; i < 8; i++) {
+    if (rules[i]?.skipped) continue;
+    m = Math.max(m, Math.abs(rules[i]!.rel));
+  }
   return m;
 }
 
@@ -189,6 +192,7 @@ export function maxStrictAbsRel(rules: RuleResult[]): number {
   let m = 0;
   for (let i = 0; i < RULES.length; i++) {
     if (!RULES[i]!.strict) continue;
+    if (rules[i]?.skipped) continue;
     m = Math.max(m, Math.abs(rules[i]!.rel));
   }
   return m;
@@ -198,6 +202,7 @@ export function maxSoftAbsRel(rules: RuleResult[]): number {
   let m = 0;
   for (let i = 0; i < 8; i++) {
     if (RULES[i]!.strict) continue;
+    if (rules[i]?.skipped) continue;
     m = Math.max(m, Math.abs(rules[i]!.rel));
   }
   return m;

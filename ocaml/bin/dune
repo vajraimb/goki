@@ -1,13 +1,14 @@
 (executable
- (public_name goki)
  (name goki)
- (libraries base stdio ocannl goki_fs)
- (preprocess
-  (pps ppx_here ppx_ocannl)))
+ (public_name goki)
+ (libraries goki base ocannl stdio))
 
-(rule
- (alias runtest)
- (action
-  (progn
-   (with-stdout-to goki.actual (run ./goki.exe))
-   (diff? goki.expected goki.actual))))
+(executable
+ (name closer)
+ (public_name goki-closer)
+ (libraries goki base ocannl stdio))
+
+(executable
+ (name bank_closer)
+ (public_name goki-bank-closer)
+ (libraries goki base ocannl stdio))

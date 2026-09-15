@@ -232,11 +232,11 @@ export const EMPTY_BOOKS: YearBooks = {
 
 let cachedIssuers: Issuer[] | null = null;
 
-export function generateIssuers(seed = INIT_SEED, n = N_ISSUERS): Issuer[] {
+export function generateIssuers(seed = INIT_SEED, n = N_ISSUERS, forceIndustry?: Industry): Issuer[] {
   const rng = mulberry32(seed);
   const out: Issuer[] = [];
   for (let i = 0; i < n; i++) {
-    const industry = INDUSTRIES[i % INDUSTRIES.length]!;
+    const industry = forceIndustry ?? INDUSTRIES[i % INDUSTRIES.length]!;
     const sizeRoll = rng();
     const size: SizeTier =
       sizeRoll < 0.08 ? "mega" : sizeRoll < 0.28 ? "large" : sizeRoll < 0.7 ? "mid" : "small";
@@ -268,6 +268,7 @@ export function generateIssuers(seed = INIT_SEED, n = N_ISSUERS): Issuer[] {
       ticker: tickerOf(i, industry),
       name: nameOf(i, industry),
       industry,
+      pack: industry === "bank" ? "bank" : "generic",
       size,
       inject,
       errorKinds,

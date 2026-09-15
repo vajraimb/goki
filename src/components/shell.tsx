@@ -3,7 +3,7 @@ import { cn } from "@/lib/cn";
 
 const NAV = [
   { to: "/", label: "队列" },
-  { to: "/hk", label: "港股" },
+  { to: "/closer", label: "闭合" },
   { to: "/rules", label: "规则" },
   { to: "/lab", label: "实验室" },
 ] as const;
@@ -26,9 +26,9 @@ export function Shell({ children }: { children: React.ReactNode }) {
             {NAV.map((item) => {
               const active =
                 item.to === "/"
-                  ? pathname === "/"
-                  : item.to === "/hk"
-                    ? pathname === "/hk" || pathname.startsWith("/issuer/hk-")
+                  ? pathname === "/" || pathname === "/hk" || pathname.startsWith("/issuer/")
+                  : item.to === "/closer"
+                    ? pathname === "/closer"
                     : pathname.startsWith(item.to);
               return (
                 <Link
