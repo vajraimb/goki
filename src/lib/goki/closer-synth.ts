@@ -1,7 +1,8 @@
 import { mulberry32, randn } from "./rng";
 import { EMPTY_NOTES, mergeNotes } from "./note-rules";
 import { generateIssuers } from "./statements";
-import type { ErrorKind, Issuer, NoteBooks } from "./types";
+import { totalAssets } from "./rules";
+import type { ErrorKind, Issuer, NoteBooks, RulePack } from "./types";
 
 function closeNotes(issuer: Issuer, rng: () => number): { prior: NoteBooks; curr: NoteBooks } {
   const { curr, prior } = issuer;
@@ -83,7 +84,6 @@ function closeNotes(issuer: Issuer, rng: () => number): { prior: NoteBooks; curr
   return { prior: priorNotes, curr: currNotes };
 }
 
-/** Close bank identities B01/B02 and keep N01/N03–N05 closed. */
 function closeBankNotes(issuer: Issuer, rng: () => number): { prior: NoteBooks; curr: NoteBooks } {
   const base = closeNotes(issuer, rng);
   const net = Math.max(issuer.curr.ar, 1);
@@ -96,7 +96,6 @@ function closeBankNotes(issuer: Issuer, rng: () => number): { prior: NoteBooks; 
   const eclWriteoff = eclCharge * (0.35 + rng() * 0.5);
   const eclRecover = eclWriteoff * rng() * 0.12;
   const eclFx = ecl * randn(rng) * 0.04;
-  // ecl = eclBeg + charge - writeoff + recover + fx  (identity)
   const eclClosed = eclBeg + eclCharge - eclWriteoff + eclRecover + eclFx;
   const loansGross = net + eclClosed;
   const priorGross = priorNet + eclBeg;
@@ -129,6 +128,73 @@ function closeBankNotes(issuer: Issuer, rng: () => number): { prior: NoteBooks; 
       ppeImpair: 0,
       ppeFx: 0,
       ppeReval: 0,
+    },
+  };
+}
+
+function closeRealtyNotes(issuer: Issuer, rng: () => number): { prior: NoteBooks; curr: NoteBooks } {
+  const base = closeNotes(issuer, rng);
+  const a = Math.max(totalAssets(issuer.curr), 1);
+  const ipBeg = a * (0.45 + rng() * 0.08);
+  const ipFv = issuer.curr.ni * randn(rng) * 0.2;
+  const ipAdd = Math.max(0, ipBeg * (0.01 + rng() * 0.04));
+  const ipDisp = Math.max(0, ipBeg * rng() * 0.01);
+  const ipTransfer = issuer.curr.inv * rng() * 0.04;
+  const ip = ipBeg + ipAdd + ipTransfer + ipFv - ipDisp;
+  const devCost = issuer.curr.inv - (issuer.prior.inv - issuer.curr.cogs - ipTransfer);
+  return {
+    prior: { ...base.prior, ip: ipBeg },
+    curr: { ...base.curr, ip, ipAdd, ipFv, ipDisp, ipTransfer, devCost },
+  };
+}
+
+function closeEnergyNotes(issuer: Issuer, rng: () => number): { prior: NoteBooks; curr: NoteBooks } {
+  const base = closeNotes(issuer, rng);
+  const provBeg = issuer.curr.ppe * (0.12 + rng() * 0.06);
+  const abandonUnwind = provBeg * (0.03 + rng() * 0.03);
+  const provCharge = provBeg * rng() * 0.08;
+  const provUse = provBeg * rng() * 0.04;
+  const prov = provBeg + provCharge + abandonUnwind - provUse;
+  const fuelClause = issuer.curr.revenue * randn(rng) * 0.02;
+  return {
+    prior: { ...base.prior, prov: provBeg, rou: base.prior.rou },
+    curr: { ...base.curr, prov, provCharge, abandonUnwind, provUse, fuelClause },
+  };
+}
+
+function closePlatformNotes(issuer: Issuer, rng: () => number): { prior: NoteBooks; curr: NoteBooks } {
+  const base = closeNotes(issuer, rng);
+  const stInvest = issuer.curr.cash * (0.8 + rng() * 1.4);
+  return {
+    prior: base.prior,
+    curr: { ...base.curr, stInvest, buyback: Math.max(base.curr.buyback, Math.abs(issuer.curr.ni) * 0.15) },
+  };
+}
+
+function closeExchangeNotes(issuer: Issuer, rng: () => number): { prior: NoteBooks; curr: NoteBooks } {
+  const base = closeNotes(issuer, rng);
+  const cash = Math.max(issuer.curr.cash, 1);
+  const ownCash = cash * (0.08 + rng() * 0.06);
+  const marginCash = cash * (0.65 + rng() * 0.1);
+  const clearingCash = cash * (0.14 + rng() * 0.04);
+  const asharesCash = cash - ownCash - marginCash - clearingCash;
+  const marginFunds = marginCash * (1.7 + rng() * 0.4);
+  const marginLiab = marginFunds * (1.02 + rng() * 0.08);
+  const clearingFunds = clearingCash * (1.15 + rng() * 0.1);
+  const clearingLiab = clearingFunds * (0.92 + rng() * 0.06);
+  const priorMargin = marginLiab * (0.7 + rng() * 0.2);
+  return {
+    prior: { ...base.prior, marginLiab: priorMargin, ownCash: ownCash * 0.9 },
+    curr: {
+      ...base.curr,
+      ownCash,
+      marginCash,
+      clearingCash,
+      asharesCash,
+      marginFunds,
+      marginLiab,
+      clearingFunds,
+      clearingLiab,
     },
   };
 }
@@ -207,9 +273,33 @@ function injectBankBreak(rng: () => number, issuer: Issuer): ErrorKind {
   return kind;
 }
 
-function finishIssuer(issuer: Issuer, rng: () => number, bank: boolean): Issuer {
+function injectPackBreak(rng: () => number, issuer: Issuer, pack: RulePack): ErrorKind {
+  if (pack === "bank") return injectBankBreak(rng, issuer);
+  const notes = mergeNotes(issuer.currNotes);
+  const mag = Math.max(Math.abs(issuer.curr.ni) * (0.08 + rng() * 0.14), 80);
+  if (pack === "realty") {
+    notes.ip += mag;
+    notes.ipFv = 0;
+    issuer.currNotes = notes;
+    return "note_ip";
+  }
+  if (pack === "energy") {
+    notes.prov += mag;
+    notes.abandonUnwind = 0;
+    issuer.currNotes = notes;
+    return "note_aro";
+  }
+  if (pack === "exchange") {
+    notes.ownCash += mag;
+    issuer.currNotes = notes;
+    return "note_margin";
+  }
+  return injectNoteBreak(rng, issuer);
+}
+
+function finishIssuer(issuer: Issuer, rng: () => number, pack: RulePack): Issuer {
   if (issuer.inject === "true_error") {
-    issuer.errorKinds = [bank ? injectBankBreak(rng, issuer) : injectNoteBreak(rng, issuer)];
+    issuer.errorKinds = [injectPackBreak(rng, issuer, pack)];
   } else if (issuer.inject === "rounding") {
     const step = issuer.size === "mega" || issuer.size === "large" ? 100 : 10;
     const keys = Object.keys(issuer.currNotes!) as (keyof NoteBooks)[];
@@ -218,7 +308,7 @@ function finishIssuer(issuer: Issuer, rng: () => number, bank: boolean): Issuer 
     }
   } else if (issuer.inject === "reclass") {
     const n = issuer.currNotes!;
-    if (bank) {
+    if (pack === "bank") {
       const move = n.eclCharge * 0.35;
       n.eclCharge -= move;
       n.eclWriteoff += move;
@@ -231,43 +321,66 @@ function finishIssuer(issuer: Issuer, rng: () => number, bank: boolean): Issuer 
   return issuer;
 }
 
+function closerOf(pack: RulePack, issuer: Issuer, rng: () => number) {
+  if (pack === "bank") return closeBankNotes(issuer, rng);
+  if (pack === "realty") return closeRealtyNotes(issuer, rng);
+  if (pack === "energy") return closeEnergyNotes(issuer, rng);
+  if (pack === "platform") return closePlatformNotes(issuer, rng);
+  if (pack === "exchange") return closeExchangeNotes(issuer, rng);
+  return closeNotes(issuer, rng);
+}
+
 export const N_CLOSER = 480;
+export const N_PACK_CLOSER = 240;
 export const CLOSER_SEED = 7;
 export const BANK_CLOSER_SEED = 11;
 
+export const PACK_CLOSER_SEED: Record<RulePack, number> = {
+  generic: 7,
+  bank: 11,
+  exchange: 23,
+  realty: 13,
+  energy: 17,
+  platform: 19,
+};
+
 export function generateCloserIssuers(seed = CLOSER_SEED, n = N_CLOSER): Issuer[] {
-  const base = generateIssuers(seed, n);
-  const rng = mulberry32(seed + 99);
-  return base.map((iss, i) => {
-    const closed = closeNotes(iss, rng);
-    const issuer: Issuer = {
-      ...iss,
-      id: `closer-${String(i).padStart(4, "0")}`,
-      pack: "generic",
-      priorNotes: closed.prior,
-      currNotes: closed.curr,
-      inject: iss.inject === "true_error" ? "true_error" : iss.inject,
-      errorKinds: [],
-    };
-    return finishIssuer(issuer, rng, false);
-  });
+  return generatePackCloserIssuers("generic", seed, n);
 }
 
 export function generateBankCloserIssuers(seed = BANK_CLOSER_SEED, n = N_CLOSER): Issuer[] {
-  const base = generateIssuers(seed, n, "bank");
-  const rng = mulberry32(seed + 201);
+  return generatePackCloserIssuers("bank", seed, n);
+}
+
+export function generatePackCloserIssuers(
+  pack: RulePack,
+  seed = PACK_CLOSER_SEED[pack],
+  n = pack === "generic" || pack === "bank" ? N_CLOSER : N_PACK_CLOSER,
+): Issuer[] {
+  const industry =
+    pack === "bank" || pack === "exchange"
+      ? "bank"
+      : pack === "realty"
+        ? "realty"
+        : pack === "energy"
+          ? "energy"
+          : pack === "platform"
+            ? "tech"
+            : undefined;
+  const base = generateIssuers(seed, n, industry);
+  const rng = mulberry32(seed + 99);
   return base.map((iss, i) => {
-    const closed = closeBankNotes(iss, rng);
+    const closed = closerOf(pack, iss, rng);
     const issuer: Issuer = {
       ...iss,
-      id: `bank-${String(i).padStart(4, "0")}`,
-      industry: "bank",
-      pack: "bank",
+      id: `${pack}-${String(i).padStart(4, "0")}`,
+      pack,
+      industry: industry ?? iss.industry,
       priorNotes: closed.prior,
       currNotes: closed.curr,
       inject: iss.inject === "true_error" ? "true_error" : iss.inject,
       errorKinds: [],
     };
-    return finishIssuer(issuer, rng, true);
+    return finishIssuer(issuer, rng, pack);
   });
 }

@@ -36,6 +36,23 @@ export const EMPTY_NOTES: NoteBooks = {
   eclFx: 0,
   deposits: 0,
   nii: 0,
+  ip: 0,
+  ipAdd: 0,
+  ipFv: 0,
+  ipDisp: 0,
+  ipTransfer: 0,
+  devCost: 0,
+  abandonUnwind: 0,
+  ownCash: 0,
+  marginCash: 0,
+  clearingCash: 0,
+  asharesCash: 0,
+  marginFunds: 0,
+  marginLiab: 0,
+  clearingFunds: 0,
+  clearingLiab: 0,
+  stInvest: 0,
+  fuelClause: 0,
 };
 
 export function mergeNotes(base: NoteBooks | undefined, over?: Partial<NoteBooks>): NoteBooks {
@@ -58,8 +75,7 @@ export const NOTE_RULES: RuleDef[] = [
     kind: "identity",
     strict: true,
     formula: "ΔRE − (NI − 分红 + OCI − 回购 + 股份支付 + NCI + 其他) = 0",
-    explain:
-      "截断式 R03 缺的项都在这里。附注填齐后仍非零，才是未解释缺口。",
+    explain: "截断式 R03 缺的项都在这里。附注填齐后仍非零，才是未解释缺口。",
   },
   {
     id: "n1",
@@ -136,7 +152,7 @@ export const NOTE_RULES: RuleDef[] = [
 export const NOTE_FIELDS: {
   key: keyof NoteBooks;
   label: string;
-  group: "n0" | "n1" | "n2" | "n3" | "n4" | "n5" | "n6" | "n7";
+  group: string;
 }[] = [
   { key: "oci", label: "OCI", group: "n0" },
   { key: "buyback", label: "回购", group: "n0" },
@@ -167,9 +183,44 @@ export const NOTE_FIELDS: {
   { key: "provUse", label: "使用", group: "n7" },
 ];
 
-function nz(n: number, floor = 1): number {
+export function nz(n: number, floor = 1): number {
   const a = Math.abs(n);
   return a < floor ? floor : a;
+}
+
+export function resultsOf(rules: RuleDef[], raw: { residual: number; scale: number; rel: number }[]): RuleResult[] {
+  return rules.map((rule, i) => ({
+    ruleId: rule.id,
+    residual: raw[i]!.residual,
+    scale: raw[i]!.scale,
+    rel: raw[i]!.rel,
+    priorRel: 0,
+    yoy: raw[i]!.rel,
+    kind: rule.kind,
+  }));
+}
+
+export function equityGap(prior: YearBooks, curr: YearBooks, n: NoteBooks): number {
+  return curr.re - prior.re - (curr.ni - curr.dividends + n.oci - n.buyback + n.sbp + n.nci + n.otherEq);
+}
+
+export function cashGap(prior: YearBooks, curr: YearBooks, n: NoteBooks): number {
+  return curr.cash - prior.cash - (curr.netCf + n.fxCash);
+}
+
+export function debtGap(prior: YearBooks, curr: YearBooks, n: NoteBooks): number {
+  return curr.stDebt + curr.ltDebt - (prior.stDebt + prior.ltDebt + n.borrowDraw - n.borrowRepay + n.fxDebt);
+}
+
+export function taxGap(prior: YearBooks, curr: YearBooks, n: NoteBooks): number {
+  return curr.taxPay - (prior.taxPay + curr.tax - curr.taxPaid + n.deferredTaxAdj);
+}
+
+export function ppeGap(prior: YearBooks, curr: YearBooks, n: NoteBooks): number {
+  return (
+    curr.ppe -
+    (prior.ppe + n.ppeAdd + n.ppeCip - curr.da - n.ppeDisp - n.ppeImpair + n.ppeFx + n.ppeReval)
+  );
 }
 
 export function evaluateNotes(
@@ -180,17 +231,11 @@ export function evaluateNotes(
 ): RuleResult[] {
   const n = currNotes;
   const p = priorNotes;
-  const dRe = curr.re - prior.re;
-  const r0 = dRe - (curr.ni - curr.dividends + n.oci - n.buyback + n.sbp + n.nci + n.otherEq);
-  const r1 =
-    curr.ppe -
-    (prior.ppe + n.ppeAdd + n.ppeCip - curr.da - n.ppeDisp - n.ppeImpair + n.ppeFx + n.ppeReval);
-  const r2 = curr.cash - prior.cash - (curr.netCf + n.fxCash);
-  const r3 =
-    curr.stDebt +
-    curr.ltDebt -
-    (prior.stDebt + prior.ltDebt + n.borrowDraw - n.borrowRepay + n.fxDebt);
-  const r4 = curr.taxPay - (prior.taxPay + curr.tax - curr.taxPaid + n.deferredTaxAdj);
+  const r0 = equityGap(prior, curr, n);
+  const r1 = ppeGap(prior, curr, n);
+  const r2 = cashGap(prior, curr, n);
+  const r3 = debtGap(prior, curr, n);
+  const r4 = taxGap(prior, curr, n);
   const r5 = n.intan - (p.intan + n.intanAdd - n.intanAmort - n.intanImpair);
   const r6 = n.rou - (p.rou + n.rouAdd - n.rouDep - n.rouTerm);
   const r7 = n.prov - (p.prov + n.provCharge - n.provUse);
@@ -210,16 +255,7 @@ export function evaluateNotes(
     { residual: r6, scale: nz(n.rou, floor), rel: r6 / nz(n.rou, floor) },
     { residual: r7, scale: nz(n.prov, floor), rel: r7 / nz(n.prov, floor) },
   ];
-
-  return NOTE_RULES.map((rule, i) => ({
-    ruleId: rule.id,
-    residual: raw[i]!.residual,
-    scale: raw[i]!.scale,
-    rel: raw[i]!.rel,
-    priorRel: 0,
-    yoy: raw[i]!.rel,
-    kind: rule.kind,
-  }));
+  return resultsOf(NOTE_RULES, raw);
 }
 
 export function noteFeatures(issuer: Issuer, overlay?: Partial<NoteBooks>): {
@@ -264,17 +300,14 @@ export function plugTruncation(issuer: Issuer, notes: NoteBooks): NoteBooks {
   n.otherEq += dRe - eqExplained;
   const ppeExplained =
     prior.ppe + n.ppeAdd + n.ppeCip - curr.da - n.ppeDisp - n.ppeImpair + n.ppeFx + n.ppeReval;
-  const ppeGap = curr.ppe - ppeExplained;
-  if (ppeGap < 0) n.ppeDisp += -ppeGap;
-  else n.ppeCip += ppeGap;
-  const cashGap = curr.cash - prior.cash - (curr.netCf + n.fxCash);
-  n.fxCash += cashGap;
-  const debtGap =
-    curr.stDebt +
-    curr.ltDebt -
-    (prior.stDebt + prior.ltDebt + n.borrowDraw - n.borrowRepay + n.fxDebt);
-  if (debtGap >= 0) n.borrowDraw += debtGap;
-  else n.borrowRepay += -debtGap;
+  const gap = curr.ppe - ppeExplained;
+  if (gap < 0) n.ppeDisp += -gap;
+  else n.ppeCip += gap;
+  n.fxCash += curr.cash - prior.cash - (curr.netCf + n.fxCash);
+  const dGap =
+    curr.stDebt + curr.ltDebt - (prior.stDebt + prior.ltDebt + n.borrowDraw - n.borrowRepay + n.fxDebt);
+  if (dGap >= 0) n.borrowDraw += dGap;
+  else n.borrowRepay += -dGap;
   n.deferredTaxAdj += curr.taxPay - (prior.taxPay + curr.tax - curr.taxPaid + n.deferredTaxAdj);
   return n;
 }

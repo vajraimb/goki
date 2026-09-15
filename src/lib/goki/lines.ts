@@ -71,5 +71,52 @@ export function linesFor(pack: RulePack | undefined): {
   cf: Line[];
 } {
   if (pack === "bank") return { is: BANK_IS_LINES, bs: BANK_BS_LINES, cf: CF_LINES };
+  if (pack === "exchange") {
+    return {
+      is: [
+        { key: "revenue", label: "收入及其他收益" },
+        { key: "opex", label: "经营开支" },
+        { key: "da", label: "折旧及摊销" },
+        { key: "ebit", label: "经营溢利" },
+        { key: "pretax", label: "除税前溢利", total: true },
+        { key: "tax", label: "税项" },
+        { key: "ni", label: "股东应占溢利", total: true },
+        { key: "dividends", label: "股息" },
+      ],
+      bs: [
+        { key: "cash", label: "现金（含保证金）" },
+        { key: "ar", label: "应收及结算" },
+        { key: "otherCa", label: "其他流动资产" },
+        { key: "ppe", label: "物业及设备" },
+        { key: "otherNca", label: "其他非流动资产" },
+        { key: "ap", label: "应付及结算" },
+        { key: "otherL", label: "保证金及结算负债" },
+        { key: "shareCap", label: "股本" },
+        { key: "re", label: "储备" },
+      ],
+      cf: CF_LINES,
+    };
+  }
+  if (pack === "realty") {
+    return {
+      is: IS_LINES,
+      bs: [
+        { key: "cash", label: "银行存款及现金" },
+        { key: "ar", label: "贸易及其他应收" },
+        { key: "inv", label: "待售物业" },
+        { key: "otherCa", label: "其他流动资产" },
+        { key: "ppe", label: "物业厂房及设备" },
+        { key: "otherNca", label: "投资物业及其他" },
+        { key: "ap", label: "贸易及其他应付" },
+        { key: "stDebt", label: "短期借款" },
+        { key: "taxPay", label: "应交税" },
+        { key: "ltDebt", label: "长期借款" },
+        { key: "otherL", label: "其他负债" },
+        { key: "shareCap", label: "股本" },
+        { key: "re", label: "储备" },
+      ],
+      cf: CF_LINES,
+    };
+  }
   return { is: IS_LINES, bs: BS_LINES, cf: CF_LINES };
 }

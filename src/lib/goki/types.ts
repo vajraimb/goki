@@ -22,13 +22,16 @@ export const INDUSTRY_LABEL: Record<Industry, string> = {
   trans: "交运",
 };
 
-export const RULE_PACKS = ["generic", "bank", "exchange"] as const;
+export const RULE_PACKS = ["generic", "bank", "exchange", "realty", "energy", "platform"] as const;
 export type RulePack = (typeof RULE_PACKS)[number];
 
 export const PACK_LABEL: Record<RulePack, string> = {
   generic: "通用",
   bank: "银行",
   exchange: "交易所",
+  realty: "地产",
+  energy: "能源",
+  platform: "平台",
 };
 
 export const SIZE_LABEL = {
@@ -56,7 +59,10 @@ export type ErrorKind =
   | "note_intan"
   | "note_rou"
   | "note_ecl"
-  | "note_loan";
+  | "note_loan"
+  | "note_ip"
+  | "note_margin"
+  | "note_aro";
 
 /** Amounts in 万元. */
 export interface YearBooks {
@@ -149,6 +155,23 @@ export interface NoteBooks {
   eclFx: number;
   deposits: number;
   nii: number;
+  ip: number;
+  ipAdd: number;
+  ipFv: number;
+  ipDisp: number;
+  ipTransfer: number;
+  devCost: number;
+  abandonUnwind: number;
+  ownCash: number;
+  marginCash: number;
+  clearingCash: number;
+  asharesCash: number;
+  marginFunds: number;
+  marginLiab: number;
+  clearingFunds: number;
+  clearingLiab: number;
+  stInvest: number;
+  fuelClause: number;
 }
 
 export interface RuleDef {
@@ -248,4 +271,21 @@ export interface Engagement {
   routine: string;
   golden: string;
   featureNames: string[];
+}
+
+export interface EstimateScore {
+  predicted: number;
+  actual: number;
+  residual: number;
+  pOutlier: number;
+  band: "exception" | "review" | "pass";
+  features: number[];
+  names: string[];
+}
+
+export interface PackGuess {
+  pack: RulePack;
+  probs: Record<RulePack, number>;
+  assigned: RulePack;
+  match: boolean;
 }

@@ -4,6 +4,7 @@ import { cn } from "@/lib/cn";
 const NAV = [
   { to: "/", label: "队列" },
   { to: "/closer", label: "闭合" },
+  { to: "/models", label: "模型" },
   { to: "/rules", label: "规则" },
   { to: "/lab", label: "实验室" },
 ] as const;

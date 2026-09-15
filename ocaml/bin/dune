@@ -12,3 +12,38 @@
  (name bank_closer)
  (public_name goki-bank-closer)
  (libraries goki base ocannl stdio))
+
+(executable
+ (name realty_closer)
+ (public_name goki-realty-closer)
+ (libraries goki base ocannl stdio))
+
+(executable
+ (name energy_closer)
+ (public_name goki-energy-closer)
+ (libraries goki base ocannl stdio))
+
+(executable
+ (name platform_closer)
+ (public_name goki-platform-closer)
+ (libraries goki base ocannl stdio))
+
+(executable
+ (name exchange_closer)
+ (public_name goki-exchange-closer)
+ (libraries goki base ocannl stdio))
+
+(executable
+ (name pack_net)
+ (public_name goki-pack-net)
+ (libraries goki base ocannl stdio))
+
+(executable
+ (name estimate_ecl)
+ (public_name goki-estimate-ecl)
+ (libraries goki base ocannl stdio))
+
+(executable
+ (name estimate_fv)
+ (public_name goki-estimate-fv)
+ (libraries goki base ocannl stdio))

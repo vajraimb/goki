@@ -1,13 +1,10 @@
 import { mulberry32, shuffleInPlace } from "./rng";
 import {
-  BANK_CLOSER_SEED,
-  CLOSER_SEED,
-  generateBankCloserIssuers,
-  generateCloserIssuers,
-  N_CLOSER,
+  generatePackCloserIssuers,
+  PACK_CLOSER_SEED,
 } from "./closer-synth";
-import { N_NOTE_FEATURES, NOTE_FEATURE_NAMES } from "./note-rules";
-import { BANK_FEATURE_NAMES, packNoteFeatures, packOf } from "./packs";
+import { N_NOTE_FEATURES } from "./note-rules";
+import { packNoteFeatures, packOf } from "./packs";
 import { buildHkIssuers } from "./hk-bluechips";
 import {
   aeErr,
@@ -24,9 +21,11 @@ import {
   type AE,
 } from "./nn";
 import { mergeNotes } from "./note-rules";
-import type { CloserEngagement, CloserScore, Issuer, NoteBooks } from "./types";
+import type { CloserEngagement, CloserScore, Issuer, NoteBooks, RulePack } from "./types";
+import { RULE_PACKS } from "./types";
 
-const EPOCHS = 12;
+const EPOCHS_FULL = 12;
+const EPOCHS_PACK = 8;
 const BATCH = 32;
 const HID1 = 32;
 const HID2 = 16;
@@ -53,16 +52,11 @@ function bandOf(p: number, maxRel: number): CloserScore["band"] {
   return "pass";
 }
 
-function compileRoutine(
-  paramCount: number,
-  checksumHex: string,
-  auc: number,
-  kind: "generic" | "bank",
-): string {
-  const tag = kind === "bank" ? "goki_bank_closer_forward" : "goki_closer_forward";
-  const seed = kind === "bank" ? BANK_CLOSER_SEED : CLOSER_SEED;
+function compileRoutine(paramCount: number, checksumHex: string, auc: number, pack: RulePack): string {
+  const tag = `goki_${pack}_closer_forward`;
+  const seed = PACK_CLOSER_SEED[pack];
   return `/* ${tag} — OCANNL cc backend replica
- * ${kind} note-rollforward closer   seed=${seed}   params=${paramCount}   dtype=f32
+ * ${pack} note-rollforward closer   seed=${seed}   params=${paramCount}   dtype=f32
  * checksum=${checksumHex}   test_auc=${auc.toFixed(4)}
  */
 void ${tag}(const float *x /* [16] */, float *y /* [1] */) {
@@ -89,6 +83,7 @@ export interface CloserModel {
   ae: AE;
   mean: Float64Array;
   std: Float64Array;
+  pack: RulePack;
 }
 
 function maxPackRel(rules: CloserScore["rules"]): number {
@@ -101,17 +96,13 @@ function maxPackRel(rules: CloserScore["rules"]): number {
   return m;
 }
 
-function trainCloser(
-  seed: number,
-  issuers: Issuer[],
-  kind: "generic" | "bank",
-): { engagement: CloserEngagement; model: CloserModel } {
+function trainCloser(seed: number, issuers: Issuer[], pack: RulePack): { engagement: CloserEngagement; model: CloserModel } {
   const t0 = performance.now();
-  const names = kind === "bank" ? BANK_FEATURE_NAMES : NOTE_FEATURE_NAMES;
   const packed = issuers.map((iss) => {
-    const { features, rules, notes } = packNoteFeatures(iss);
-    return { issuer: iss, features, rules, notes, y: iss.inject === "true_error" ? 1 : 0 };
+    const { features, rules, notes, names } = packNoteFeatures(iss);
+    return { issuer: iss, features, rules, notes, names, y: iss.inject === "true_error" ? 1 : 0 };
   });
+  const names = packed[0]?.names ?? [];
 
   const idx = packed.map((_, i) => i);
   const splitRng = mulberry32(42);
@@ -152,10 +143,11 @@ function trainCloser(
   const ae = makeAe(rng, d, 12, 6);
 
   const logs: CloserEngagement["logs"] = [];
+  const epochs = pack === "generic" || pack === "bank" ? EPOCHS_FULL : EPOCHS_PACK;
   const nBatches = Math.max(1, Math.floor(trainIdx.length / BATCH));
-  const steps = EPOCHS * nBatches;
+  const steps = epochs * nBatches;
 
-  for (let epoch = 0; epoch < EPOCHS; epoch++) {
+  for (let epoch = 0; epoch < epochs; epoch++) {
     const order = trainIdx.slice();
     shuffleInPlace(rng, order);
     let bce = 0;
@@ -222,7 +214,7 @@ function trainCloser(
   const paramCount = mlpParamCount(mlp);
   const last = logs[logs.length - 1]!;
 
-  const model: CloserModel = { mlp, ae, mean, std };
+  const model: CloserModel = { mlp, ae, mean, std, pack };
   const engagement: CloserEngagement = {
     seed,
     backend: "cc_replica",
@@ -246,14 +238,14 @@ function trainCloser(
       weightChecksum: cs,
       trainMs: performance.now() - t0,
     },
-    routine: compileRoutine(paramCount, cs, auc, kind),
+    routine: compileRoutine(paramCount, cs, auc, pack),
     golden: [
-      kind === "bank" ? "goki_bank_closer.expected" : "goki_closer.expected",
+      `goki_${pack}_closer.expected`,
       `fixed_state_for_init=${seed}`,
       `n_issuers=${issuers.length}`,
       `n_features=${d}`,
       `params=${paramCount}`,
-      `epochs=${EPOCHS}`,
+      `epochs=${epochs}`,
       `train_bce_tail=${last.trainBce.toFixed(6)}`,
       `val_bce_tail=${last.valBce.toFixed(6)}`,
       `test_auc=${auc.toFixed(6)}`,
@@ -264,42 +256,46 @@ function trainCloser(
   return { engagement, model };
 }
 
-let cached: CloserEngagement | null = null;
-let model: CloserModel | null = null;
-let bankCached: CloserEngagement | null = null;
-let bankModel: CloserModel | null = null;
+const cachedEng = new Map<RulePack, CloserEngagement>();
+const cachedModel = new Map<RulePack, CloserModel>();
 
-export function runCloserEngagement(seed = CLOSER_SEED): CloserEngagement {
-  if (cached && seed === cached.seed) return cached;
-  const issuers = generateCloserIssuers(seed, N_CLOSER);
-  const out = trainCloser(seed, issuers, "generic");
-  model = out.model;
-  cached = out.engagement;
-  return cached;
+export function ensureCloser(pack: RulePack): CloserEngagement {
+  const hit = cachedEng.get(pack);
+  if (hit) return hit;
+  const seed = PACK_CLOSER_SEED[pack];
+  const issuers = generatePackCloserIssuers(pack, seed);
+  const out = trainCloser(seed, issuers, pack);
+  cachedEng.set(pack, out.engagement);
+  cachedModel.set(pack, out.model);
+  return out.engagement;
 }
 
-export function runBankCloserEngagement(seed = BANK_CLOSER_SEED): CloserEngagement {
-  if (bankCached && seed === bankCached.seed) return bankCached;
-  const issuers = generateBankCloserIssuers(seed, N_CLOSER);
-  const out = trainCloser(seed, issuers, "bank");
-  bankModel = out.model;
-  bankCached = out.engagement;
-  return bankCached;
+export function runCloserEngagement(seed = PACK_CLOSER_SEED.generic): CloserEngagement {
+  return ensureCloser("generic");
+}
+
+export function runBankCloserEngagement(seed = PACK_CLOSER_SEED.bank): CloserEngagement {
+  return ensureCloser("bank");
 }
 
 export function getCloserModel(): CloserModel {
-  if (!model) runCloserEngagement();
-  return model!;
+  ensureCloser("generic");
+  return cachedModel.get("generic")!;
 }
 
 export function getBankCloserModel(): CloserModel {
-  if (!bankModel) runBankCloserEngagement();
-  return bankModel!;
+  ensureCloser("bank");
+  return cachedModel.get("bank")!;
+}
+
+export function getPackCloserModel(pack: RulePack): CloserModel {
+  ensureCloser(pack);
+  return cachedModel.get(pack)!;
 }
 
 export function scoreCloserLive(issuer: Issuer, overlay?: Partial<NoteBooks>): CloserScore {
   const pack = packOf(issuer);
-  const mdl = pack === "bank" ? getBankCloserModel() : getCloserModel();
+  const mdl = getPackCloserModel(pack);
   const { mlp, ae, mean, std } = mdl;
   const { features, rules, notes, names } = packNoteFeatures(issuer, overlay);
   const x = new Float32Array(N_NOTE_FEATURES);
@@ -326,9 +322,10 @@ export function scoreCloserLive(issuer: Issuer, overlay?: Partial<NoteBooks>): C
 }
 
 export function scoreHkCloser(): CloserScore[] {
-  runCloserEngagement();
-  runBankCloserEngagement();
-  return buildHkIssuers()
+  const issuers = buildHkIssuers();
+  const needed = new Set(issuers.map((i) => packOf(i)));
+  for (const p of needed) ensureCloser(p);
+  return issuers
     .map((iss) => scoreCloserLive(iss))
     .sort((a, b) => b.maxRel - a.maxRel || b.pOpen - a.pOpen);
 }
@@ -343,5 +340,10 @@ export function mergeIssuerNotes(issuer: Issuer, overlay?: Partial<NoteBooks>): 
 }
 
 export function getBankCloserMetrics() {
-  return runBankCloserEngagement().metrics;
+  return ensureCloser("bank").metrics;
+}
+
+export function ensureAllClosers() {
+  for (const p of RULE_PACKS) ensureCloser(p);
+  return RULE_PACKS.map((p) => ({ pack: p, metrics: cachedEng.get(p)!.metrics }));
 }

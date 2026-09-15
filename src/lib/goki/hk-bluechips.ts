@@ -194,7 +194,7 @@ const SPECS: Spec[] = [
     caveats: [
       "结算所保证金、现金抵押品计入货币资金与其他负债，R02 的「现金」口径大于公司自有资金。",
       "收入用「收入及其他收益」23,745；投资收益净额未并入营业收入。",
-      "R06 对交易所不适用：没有存货、应收很少，经营现金流被参与者保证金进出主导。",
+      "交易所包：X01 四段现金加总应对上报表现金。保证金基金资产 vs 参与者负债允许投资时点差。",
     ],
     curr: {
       revenue: 23745, opex: 6068, da: 1568, ebit: 21228, interest: 96, pretax: 21158, tax: 3321, ni: 17837,
@@ -223,9 +223,9 @@ const SPECS: Spec[] = [
     filingNote: "腾讯控股 2025 年报（人民币百万元）港交所 2026-04-09",
     caveats: [
       "R01 按资产=负债+权益轧平；其他流动/非流动是合并后的塞入项。",
-      "R02：货币资金用现金及现金等价物（不含定期存款）。净增加额与 Δ现金的差主要是汇兑。",
-      "R03 会断：股份回购、OCI、少数股东、储备结转都不在「净利润−分红」里。",
-      "R07 假设无处置：本年 PPE 从 801.85 亿跳到 1,499.05 亿，资本开支与折旧解释不了，残差是口径不是造假。",
+      "R02：货币资金用现金及现金等价物（不含定期存款 2,368 亿）。",
+      "R03 会断：股份回购 734 亿、OCI、少数股东都不在「净利润−分红」里。",
+      "使用权资产附注闭合：期初 176.79 + 增加 69.12 − 折旧 62.19 − 终止 10.05 = 173.67。",
     ],
     curr: {
       revenue: 751766, cogs: 329173, gp: 422593, opex: 177854, ebit: 241562,
@@ -284,7 +284,7 @@ const SPECS: Spec[] = [
     filingNote: "中国海洋石油 2025 年报（人民币百万元）",
     caveats: [
       "营业成本用原油及油品采购；作业费、勘探、特别收益金进期间费用。",
-      "R07：油气资产的折耗、弃置拨备、储量修订会让 PPE 滚存对不上「期初+资本开支−折旧」。",
+      "能源包：PPE 加资本开支 1,188 亿、减值 38 亿；弃置准备 1,160 亿，折现释放 38 亿，新井 ARO 未单列。",
       "分红按派息率约 45% 估算，R03 仍会因储备与少数股东断裂。",
     ],
     curr: {
@@ -343,9 +343,9 @@ const SPECS: Spec[] = [
     unitLabel: "万港元",
     filingNote: "新鸿基地产截至 2025-06-30 年报（港元）。地产年结不是日历年。",
     caveats: [
-      "投资物业公允价值变动进利润，但不进简化勾稽；R03、R04 会看到储备与公允的缝。",
-      "待售物业放入存货。R10 对发展商是分析性信号，不是恒等。",
-      "R07 几乎无意义：投资物业不按成本滚折旧。",
+      "投资物业 4,170.45 亿，公允变动 −27.3 亿。P01 未填购置/转入时残差就是未映射的开发转入。",
+      "待售物业放入存货。P02 未填开发成本时残差是在建投入，不是造假。",
+      "R07 关掉：投资物业不按成本滚折旧。",
     ],
     curr: {
       revenue: 79721, cogs: 45531, opex: 8400, da: 2500, ebit: 26078,
@@ -373,8 +373,8 @@ const SPECS: Spec[] = [
     unitLabel: "万港元",
     filingNote: "CLP Holdings 2025 Annual Report（港元）",
     caveats: [
-      "受管制业务（SoC）的燃料条款、关税调整不在简化公式里。",
-      "固定资产含管制资产，R07 会因在建、退役拨备、减值对不上。",
+      "受管制业务（SoC）的燃料条款从 2024 年资产 3.7 亿翻成 2025 年负债 10.43 亿，是关税机制。",
+      "固定资产含管制资产。资本开支用 169.23 亿（按资产类型资本投入）。",
     ],
     curr: {
       revenue: 88018, cogs: 28950, opex: 35538, da: 9718, ebit: 14272,
@@ -431,7 +431,7 @@ const SPECS: Spec[] = [
     filingNote: "美团 2025 年报（人民币千元，已换成百万元）。补贴战年份。",
     caveats: [
       "2025 由盈转亏，经营现金流转负，R06 简化间接法会严重断裂——这是商业模式不是账错。",
-      "短期理财 600.6 亿不在货币资金里。",
+      "短期理财约 600.6 亿不在货币资金里，进 T01 流动性结构。",
     ],
     curr: {
       revenue: 364855, cogs: 253846, gp: 111009, opex: 128000, da: 12000, ebit: -17000,
@@ -486,9 +486,46 @@ const DISCLOSED: Record<
       deposits: 1267021,
     },
   },
+  "00388": {
+    curr: { cfo: 25627, cfi: -5565, cff: -14635 },
+    notes: {
+      ppeAdd: 1863,
+      ppeCip: 2433,
+      ownCash: 20676,
+      marginCash: 130052,
+      clearingCash: 29447,
+      asharesCash: 2549,
+      marginFunds: 247555,
+      marginLiab: 269243,
+      clearingFunds: 35808,
+      clearingLiab: 33991,
+    },
+    priorNotes: {
+      marginFunds: 168455,
+      marginLiab: 188857,
+      clearingFunds: 28727,
+      clearingLiab: 27124,
+      ownCash: 36880,
+    },
+  },
   "00700": {
     curr: { dividends: 41900, capex: 79198 },
-    notes: { buyback: 73400, oci: 45550, nci: 6565, ppeAdd: 79198 },
+    notes: {
+      buyback: 73400,
+      oci: 45550,
+      nci: 6565,
+      ppeAdd: 79198,
+      intan: 205999,
+      rou: 17367,
+      rouAdd: 6912,
+      rouDep: 6219,
+      rouTerm: 1005,
+      stInvest: 236801,
+    },
+    priorNotes: {
+      intan: 196127,
+      rou: 17679,
+    },
   },
   "01810": {
     curr: { cfo: 34142, cfi: -71679, capex: 18200 },
@@ -503,28 +540,51 @@ const DISCLOSED: Record<
   },
   "03690": {
     curr: { cfi: 29773, cff: 21243, netCf: 37201, capex: 13271 },
-    notes: { buyback: 365, ppeAdd: 13271, borrowDraw: 42232, borrowRepay: 16064 },
+    notes: { buyback: 365, ppeAdd: 13271, borrowDraw: 42232, borrowRepay: 16064, stInvest: 60060 },
   },
   "00941": {
     curr: { dividends: 102821 },
     notes: { ppeAdd: 150878 },
   },
   "00883": {
-    notes: { ppeAdd: 118829 },
+    notes: {
+      ppeAdd: 118829,
+      ppeImpair: 3809,
+      rou: 11834,
+      rouDep: 2635,
+      intan: 16522,
+      prov: 116039,
+      abandonUnwind: 3846,
+    },
+    priorNotes: {
+      rou: 12755,
+      intan: 16961,
+      prov: 99740,
+    },
   },
   "00001": {
     curr: { capex: 20945 },
     notes: { ppeAdd: 20945 },
   },
-  "00388": {
-    curr: { cfo: 25627, cfi: -5565, cff: -14635 },
-    notes: { ppeAdd: 1863, ppeCip: 2433 },
-  },
   "00016": {
-    notes: { ppeAdd: 4000 },
+    notes: {
+      ip: 417045,
+      ipFv: -2730,
+      ppeAdd: 4000,
+    },
+    priorNotes: { ip: 408424 },
   },
   "00002": {
-    notes: { ppeAdd: 12000 },
+    curr: { cash: 3905, ar: 12856, inv: 3717, capex: 16923 },
+    notes: {
+      ppeAdd: 16923,
+      rou: 10034,
+      fuelClause: -1043,
+    },
+    priorNotes: {
+      rou: 10183,
+      fuelClause: 370,
+    },
   },
 };
 
@@ -569,6 +629,12 @@ export function buildHkIssuers(): Issuer[] {
       currNotes.fxCash = curr.cash - prior.cash - curr.netCf;
     }
     const pack: RulePack = packOf({ industry: s.industry, ticker: s.ticker });
+    if (pack === "bank") {
+      curr.gp = 0;
+      curr.cogs = 0;
+      prior.gp = 0;
+      prior.cogs = 0;
+    }
     return {
       id: `hk-${s.ticker}`,
       ticker: s.ticker,
@@ -591,7 +657,15 @@ export function buildHkIssuers(): Issuer[] {
         s.filingNote,
         pack === "bank"
           ? "银行包：主表关掉毛利/存货/PPE/简化 CFO。附注测 ECL 滚存、贷款净额、贷存比。"
-          : "附注行只填年报已披露的回购、OCI、资本开支、借款提取/偿还。未披露的在建、处置、准备保持 0，完整式残差就是未映射缺口。",
+          : pack === "realty"
+            ? "地产包：关掉固定资产成本滚存。改测投资物业公允、待售物业滚存、净负债率。"
+            : pack === "energy"
+              ? "能源包：PPE 按折耗+减值+弃置准备。中电另看燃料条款。"
+              : pack === "exchange"
+                ? "交易所包：现金拆成公司资金/保证金/结算所/沪深股通。保证金资产负债允许投资时点差。"
+                : pack === "platform"
+                  ? "平台包：存货周转关掉。看回购、使用权、定期存款占流动性。"
+                  : "附注行只填年报已披露的数字。未披露的在建、处置、准备保持 0，完整式残差就是未映射缺口。",
       ],
     };
   });

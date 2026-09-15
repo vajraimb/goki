@@ -33,7 +33,7 @@ function CloserPage() {
       <Shell>
         <p className="font-mono text-xs tracking-[0.18em] text-muted uppercase">Closer-Net</p>
         <h1 className="mt-1 font-display text-4xl tracking-tight">附注闭合</h1>
-        <p className="mt-3 text-sm text-ink-soft">正在编译通用头和银行头…</p>
+        <p className="mt-3 text-sm text-ink-soft">正在编译各行业闭合头…</p>
       </Shell>
     );
   }
@@ -51,7 +51,7 @@ function CloserPage() {
           </p>
           <h1 className="mt-1 font-display text-4xl tracking-tight sm:text-5xl">附注闭合</h1>
           <p className="mt-3 max-w-2xl text-sm leading-relaxed text-ink-soft">
-            两个头，同一套 16→32→16→1。通用头看 N01–N08；银行头看 ECL 滚存、贷款净额、贷存比。合成语料上训，这里只给汇丰、恒生打银行分。
+            六个头，同一套 16→32→16→1。银行看 ECL，地产看投资物业，能源看折耗和弃置，平台看回购和使用权，交易所看保证金现金。合成语料上训，这里只打港股实报。
           </p>
         </div>
 

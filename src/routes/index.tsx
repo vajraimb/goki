@@ -3,7 +3,7 @@ import { Shell } from "@/components/shell";
 import { Badge } from "@/components/ui/badge";
 import { getHkScored } from "@/lib/goki/hk-bluechips";
 import { pct } from "@/lib/goki/format";
-import { packOf, sectorLabel } from "@/lib/goki/packs";
+import { packOf, PACK_LABEL, sectorLabel } from "@/lib/goki/packs";
 import { maxIdentityAbsRel, maxStrictAbsRel } from "@/lib/goki/rules";
 import type { ScoredIssuer } from "@/lib/goki/types";
 import { cn } from "@/lib/cn";
@@ -27,7 +27,7 @@ function Home() {
   const nEx = rows.filter((r) => r.band === "exception").length;
   const nRev = rows.filter((r) => r.band === "review").length;
   const nPass = rows.filter((r) => r.band === "pass").length;
-  const nBank = rows.filter((r) => packOf(r.issuer) === "bank").length;
+  const nPack = new Set(rows.map((r) => packOf(r.issuer))).size;
 
   return (
     <Shell>
@@ -38,8 +38,7 @@ function Home() {
           </p>
           <h1 className="mt-1 font-display text-4xl tracking-tight sm:text-5xl">年报勾稽队列</h1>
           <p className="mt-3 max-w-2xl text-sm leading-relaxed text-ink-soft">
-            十一条恒生蓝筹。银行（汇丰、恒生）走单独规则包：关掉毛利/存货/PPE，改测 ECL
-            与贷款净额。港交所标成交所，不套银行公式。硬恒等必须为零。
+            十一条恒生蓝筹。按行业走规则包：银行、地产、能源、平台、交易所、通用。硬恒等必须为零。估计项另走 ECL / 公允小模型。
           </p>
         </div>
 
@@ -57,8 +56,8 @@ function Home() {
             <dd className="mt-1 font-mono text-lg tabular-nums text-pass">{nPass}</dd>
           </div>
           <div className="rounded-lg bg-paper-2 px-4 py-3 shadow-[var(--shadow-border)]">
-            <dt className="text-xs text-muted">银行包</dt>
-            <dd className="mt-1 font-mono text-lg tabular-nums">{nBank}</dd>
+            <dt className="text-xs text-muted">规则包</dt>
+            <dd className="mt-1 font-mono text-lg tabular-nums">{nPack}</dd>
           </div>
         </dl>
 
@@ -96,8 +95,8 @@ function Home() {
                       </td>
                       <td className="px-3 py-2.5 text-ink-soft">
                         {sectorLabel(s.issuer)}
-                        {pack === "bank" && (
-                          <span className="ml-1 font-mono text-xs text-muted">ECL</span>
+                        {pack !== "generic" && (
+                          <span className="ml-1 font-mono text-xs text-muted">{PACK_LABEL[pack]}</span>
                         )}
                       </td>
                       <td

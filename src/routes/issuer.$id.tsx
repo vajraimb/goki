@@ -9,11 +9,12 @@ import { cn } from "@/lib/cn";
 import { compactP, pct, wan, aeFmt } from "@/lib/goki/format";
 import { findHk } from "@/lib/goki/hk-bluechips";
 import { linesFor } from "@/lib/goki/lines";
+import { estimatesFor } from "@/lib/goki/models";
 import { DISPOSITION_LABEL, useNotes, type Disposition } from "@/lib/goki/notes";
 import { packOf, PACK_LABEL, sectorLabel } from "@/lib/goki/packs";
-import { reconEcl, reconR03, reconR07 } from "@/lib/goki/recon";
+import { reconAro, reconEcl, reconIp, reconMargin, reconR03, reconR07 } from "@/lib/goki/recon";
 import { RULES, totalAssets, totalLE } from "@/lib/goki/rules";
-import { SIZE_LABEL, type Issuer } from "@/lib/goki/types";
+import { SIZE_LABEL, type Issuer, type RulePack } from "@/lib/goki/types";
 
 export const Route = createFileRoute("/issuer/$id")({ component: IssuerPage });
 
@@ -72,12 +73,10 @@ function IssuerPage() {
           </div>
         </div>
 
-        {pack === "bank" && (
+        {pack !== "generic" && (
           <aside className="rounded-lg bg-forest px-4 py-3 text-sm leading-relaxed text-forest-fg">
-            <p className="font-medium">银行规则包</p>
-            <p className="mt-1 text-forest-fg/80">
-              毛利、存货周转、固定资产滚存、简化间接法已关掉。改测 ECL 准备滚存（B01）、贷款总额−准备=净额（B02）、贷存比（B03）。
-            </p>
+            <p className="font-medium">{PACK_LABEL[pack]}规则包</p>
+            <p className="mt-1 text-forest-fg/80">{packBlurb(pack)}</p>
           </aside>
         )}
 
@@ -151,9 +150,9 @@ function IssuerPage() {
             <section className="rounded-lg bg-paper-2 p-4 shadow-[var(--shadow-border)]">
               <h2 className="font-display text-xl">十条勾稽</h2>
               <p className="mt-1 text-xs text-ink-soft">
-                {pack === "bank"
-                  ? "硬恒等必须闭合。毛利/存货/PPE/简化 CFO/应收周转标成银行不适用，不进分诊。"
-                  : "硬恒等必须闭合。口径项的缺口要能用 OCI / 回购 / 处置 / 在建解释，解释不了再上升为例外。"}
+                {pack === "generic"
+                  ? "硬恒等必须闭合。口径项的缺口要能用 OCI / 回购 / 处置 / 在建解释，解释不了再上升为例外。"
+                  : "硬恒等必须闭合。本包关掉的主表规则标成不适用，不进分诊。"}
               </p>
               <ol className="mt-3 divide-y divide-rule">
                 {rules.map((r) => {
@@ -207,7 +206,8 @@ function IssuerPage() {
               </ol>
             </section>
 
-            {pack === "bank" ? <BankReconCards issuer={issuer} /> : <ReconCards issuer={issuer} />}
+            <PackRecon issuer={issuer} pack={pack} />
+            <EstimatePanel issuer={issuer} pack={pack} />
             <NoteCloser issuer={issuer} />
 
             <section className="rounded-lg bg-paper-2 p-4 shadow-[var(--shadow-border)]">
@@ -344,6 +344,136 @@ function BankReconCards({ issuer }: { issuer: Issuer }) {
           </p>
           <p className="mt-1 font-mono text-xs text-muted">
             覆盖率 {pct(e.coverage, 2)} · 贷存比 {pct(e.adr, 1)}
+          </p>
+        </div>
+      </div>
+    </section>
+  );
+}
+
+function packBlurb(pack: RulePack): string {
+  if (pack === "bank")
+    return "毛利、存货、固定资产、简化间接法、应收周转已关掉。改测 ECL 准备滚存、贷款净额、贷存比。";
+  if (pack === "realty")
+    return "固定资产成本滚存和简化间接法已关掉。改测投资物业公允滚存、待售物业、净负债率。";
+  if (pack === "energy")
+    return "简化 PPE 滚存已关掉。改测折耗减值后的油气/电厂资产、弃置准备、燃料条款。";
+  if (pack === "exchange")
+    return "毛利、存货、PPE、简化 CFO 已关掉。现金拆成公司资金 / 保证金 / 结算所 / 沪深股通。";
+  if (pack === "platform") return "存货周转已关掉。看回购、使用权资产、定期存款占流动性。";
+  return "";
+}
+
+function PackRecon({ issuer, pack }: { issuer: Issuer; pack: RulePack }) {
+  if (pack === "bank") return <BankReconCards issuer={issuer} />;
+  if (pack === "realty") return <RealtyRecon issuer={issuer} />;
+  if (pack === "energy") return <EnergyRecon issuer={issuer} />;
+  if (pack === "exchange") return <ExchangeRecon issuer={issuer} />;
+  return <ReconCards issuer={issuer} />;
+}
+
+function EstimatePanel({ issuer, pack }: { issuer: Issuer; pack: RulePack }) {
+  if (pack !== "bank" && pack !== "realty") return null;
+  const { ecl, fv, pack: guess } = estimatesFor(issuer);
+  const score = pack === "bank" ? ecl : fv;
+  if (!score) return null;
+  return (
+    <section className="rounded-lg bg-paper-2 p-4 shadow-[var(--shadow-border)]">
+      <h2 className="font-display text-xl">{pack === "bank" ? "Estimate-Net ECL" : "Estimate-Net 公允"}</h2>
+      <p className="mt-1 text-xs leading-relaxed text-ink-soft">
+        Pack-Net 判为 {PACK_LABEL[guess.pack]}
+        {guess.match ? "（与指定包一致）" : `（指定 ${PACK_LABEL[guess.assigned]}）`}。
+        {pack === "bank" ? " 覆盖率对照同业约 1.2%。" : " 公允变动对照存量。"}
+      </p>
+      <p className="mt-3 font-mono text-sm tabular-nums">
+        实际 {pct(score.actual, 2)} · 参照 {pct(score.predicted, 2)} · p(异常) {compactP(score.pOutlier)}
+      </p>
+      <p className="mt-1 text-xs text-ink-soft">
+        {score.band === "pass"
+          ? "未超出同业邻域。"
+          : score.band === "review"
+            ? "偏离值得对照附注。"
+            : "偏离过大，要质疑模型/估值假设。"}
+      </p>
+    </section>
+  );
+}
+
+function RealtyRecon({ issuer }: { issuer: Issuer }) {
+  const r3 = reconR03(issuer);
+  const ip = reconIp(issuer);
+  return (
+    <section className="rounded-lg bg-paper-2 p-4 shadow-[var(--shadow-border)]">
+      <h2 className="font-display text-xl">地产缺口拆开</h2>
+      <div className="mt-3 grid gap-3">
+        <div className="rounded-md bg-paper px-3 py-3 shadow-[var(--shadow-border)]">
+          <p className="font-mono text-xs text-muted">N01 权益（截断）</p>
+          <p className="mt-1 font-mono text-sm tabular-nums">
+            ΔRE {wan(r3.deltaRe, 1)} − (NI − 分红) {wan(r3.niMinusDiv, 1)} ={" "}
+            <span className="text-review">{wan(r3.gap, 1)}</span>
+          </p>
+        </div>
+        <div className="rounded-md bg-paper px-3 py-3 shadow-[var(--shadow-border)]">
+          <p className="font-mono text-xs text-muted">P01 投资物业</p>
+          <p className="mt-1 font-mono text-sm tabular-nums">
+            期末 {wan(ip.end, 1)} − (期初 {wan(ip.beg, 1)} + 公允 {wan(ip.fv, 1)}) ={" "}
+            <span className="text-review">{wan(ip.gap, 1)}</span>
+          </p>
+          <p className="mt-1 font-mono text-xs text-muted">公允 / 存量 {pct(ip.fvRatio, 2)}</p>
+          <p className="mt-1 text-xs leading-relaxed text-ink-soft">{ip.hint}</p>
+        </div>
+      </div>
+    </section>
+  );
+}
+
+function EnergyRecon({ issuer }: { issuer: Issuer }) {
+  const r7 = reconR07(issuer);
+  const a = reconAro(issuer);
+  return (
+    <section className="rounded-lg bg-paper-2 p-4 shadow-[var(--shadow-border)]">
+      <h2 className="font-display text-xl">能源缺口拆开</h2>
+      <div className="mt-3 grid gap-3">
+        <div className="rounded-md bg-paper px-3 py-3 shadow-[var(--shadow-border)]">
+          <p className="font-mono text-xs text-muted">E01 油气/电厂资产（简化）</p>
+          <p className="mt-1 font-mono text-sm tabular-nums">
+            期末 {wan(r7.actual, 1)} − (期初 + 开支 − 折耗) ={" "}
+            <span className="text-review">{wan(r7.gap, 1)}</span>
+          </p>
+        </div>
+        <div className="rounded-md bg-paper px-3 py-3 shadow-[var(--shadow-border)]">
+          <p className="font-mono text-xs text-muted">E02 弃置准备</p>
+          <p className="mt-1 font-mono text-sm tabular-nums">
+            期末 {wan(a.end, 1)} − (期初 {wan(a.beg, 1)} + 折现 {wan(a.unwind, 1)}) ={" "}
+            <span className="text-review">{wan(a.gap, 1)}</span>
+          </p>
+          <p className="mt-1 text-xs leading-relaxed text-ink-soft">{a.hint}</p>
+        </div>
+      </div>
+    </section>
+  );
+}
+
+function ExchangeRecon({ issuer }: { issuer: Issuer }) {
+  const m = reconMargin(issuer);
+  return (
+    <section className="rounded-lg bg-paper-2 p-4 shadow-[var(--shadow-border)]">
+      <h2 className="font-display text-xl">交易所现金拆开</h2>
+      <div className="mt-3 grid gap-3">
+        <div className="rounded-md bg-paper px-3 py-3 shadow-[var(--shadow-border)]">
+          <p className="font-mono text-xs text-muted">X01 四段现金</p>
+          <p className="mt-1 font-mono text-sm tabular-nums">
+            公司 {wan(m.ownCash, 1)} + 保证金 {wan(m.marginCash, 1)} + 结算所 {wan(m.clearingCash, 1)} + 沪深{" "}
+            {wan(m.asharesCash, 1)} − 报表 {wan(m.cash, 1)} ={" "}
+            <span className={Math.abs(m.cashGap) < 1 ? "text-pass" : "text-exception"}>{wan(m.cashGap, 1)}</span>
+          </p>
+          <p className="mt-1 text-xs leading-relaxed text-ink-soft">{m.hint}</p>
+        </div>
+        <div className="rounded-md bg-paper px-3 py-3 shadow-[var(--shadow-border)]">
+          <p className="font-mono text-xs text-muted">X02 保证金资产负债</p>
+          <p className="mt-1 font-mono text-sm tabular-nums">
+            基金资产 {wan(m.marginFunds, 1)} − 参与者负债 {wan(m.marginLiab, 1)} ={" "}
+            <span className="text-review">{wan(m.marginGap, 1)}</span>
           </p>
         </div>
       </div>

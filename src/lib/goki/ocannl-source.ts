@@ -85,6 +85,38 @@ let init_seed = 11
 `,
   },
   {
+    path: "bin/pack_net.ml",
+    title: "Pack-Net · 12→24→6 softmax",
+    body: `(* Structural ratios → rule pack. Not a closer. *)
+let n_features = 12
+let hid = 24
+let n_class = 6
+let init_seed = 29
+let%op h x = relu (({ w1 } * x) + { b1; o = [ hid ] })
+let%op logits x = ({ w2 } * h x) + { b2; o = [ n_class ] }
+`,
+  },
+  {
+    path: "bin/realty_closer.ml",
+    title: "Realty-Closer · 投资物业 / 待售",
+    body: `(* P01 IP_end − (beg + add + transfer + FV − disp)
+   P02 inv − (beg + devCost − COGS − transfer)
+   P04 FV/IP analytic for Estimate-Net. PPE cost roll masked. *)
+let n_features = 16
+let init_seed = 13
+`,
+  },
+  {
+    path: "bin/energy_closer.ml",
+    title: "Energy-Closer · 折耗 / 弃置",
+    body: `(* E01 PPE − (beg + capex − DD&A − impair)
+   E02 ARO − (beg + charge + unwind − use)
+   E05 fuel clause / revenue analytic. *)
+let n_features = 16
+let init_seed = 17
+`,
+  },
+  {
     path: "lib/fs.ml",
     title: "Rules · features · split",
     body: `(* 10 勾稽 rules → 30 residual features + 8 industry one-hots = 38.
