@@ -1,0 +1,465 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <title>GOKI 勾稽模型说明 · 结构、输入输出与实报应用</title>
+  <style>
+    @page {
+      size: A4;
+      margin: 22mm 16mm 20mm 16mm;
+    }
+    * { box-sizing: border-box; }
+    html, body {
+      margin: 0;
+      padding: 0;
+      background: #F3EEE4;
+      color: #1C1915;
+      font-family: "WenQuanYi Zen Hei", "Liberation Serif", serif;
+      font-size: 10.5pt;
+      line-height: 1.55;
+      -webkit-print-color-adjust: exact;
+      print-color-adjust: exact;
+    }
+    .page { page-break-after: auto; }
+    .cover { page-break-after: always; min-height: auto; padding-bottom: 24px; }
+    h1, h2, h3 {
+      font-weight: 700;
+      line-height: 1.25;
+      margin: 0;
+    }
+    h1 { font-size: 22pt; letter-spacing: -0.02em; }
+    h2 {
+      font-size: 13pt;
+      color: #2F4A3C;
+      border-bottom: 1px solid #C9C0B0;
+      padding-bottom: 4px;
+      margin: 16px 0 8px;
+    }
+    h3 { font-size: 11pt; margin: 12px 0 4px; }
+    p { margin: 0 0 8px; }
+    .kicker {
+      font-family: "Liberation Mono", "WenQuanYi Zen Hei Mono", monospace;
+      font-size: 8pt;
+      letter-spacing: 0.18em;
+      text-transform: uppercase;
+      color: #6B645B;
+    }
+    .muted { color: #6B645B; }
+    .forest { color: #2F4A3C; }
+    .rule { color: #C9C0B0; }
+    code, .mono {
+      font-family: "Liberation Mono", "WenQuanYi Zen Hei Mono", monospace;
+      font-size: 8.6pt;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 9pt;
+      margin: 6px 0 12px;
+    }
+    th, td {
+      border-bottom: 1px solid #D8D0C4;
+      padding: 4px 6px;
+      text-align: left;
+      vertical-align: top;
+    }
+    th {
+      color: #6B645B;
+      font-weight: 600;
+      font-size: 8pt;
+    }
+    td.num, th.num { text-align: right; font-family: "Liberation Mono", monospace; }
+    .cover {
+      min-height: 248mm;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      page-break-after: always;
+      padding-bottom: 8px;
+    }
+    .mark {
+      display: inline-block;
+      background: #2F4A3C;
+      color: #F3EEE4;
+      font-size: 9pt;
+      letter-spacing: 0.22em;
+      padding: 4px 10px;
+    }
+    .meta {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 6px 24px;
+      border-top: 1px solid #C9C0B0;
+      padding-top: 10px;
+      font-size: 9pt;
+    }
+    .meta dt { color: #6B645B; font-size: 8pt; }
+    .meta dd { margin: 0 0 8px; }
+    .box {
+      background: #EBE4D7;
+      border: 1px solid #C9C0B0;
+      padding: 10px 12px;
+      margin: 8px 0 12px;
+    }
+    .warn {
+      background: #F4E6D4;
+      border-left: 3px solid #A65B2E;
+      padding: 8px 12px;
+      margin: 8px 0 12px;
+    }
+    .ok {
+      background: #DDE6DC;
+      border-left: 3px solid #2F4A3C;
+      padding: 8px 12px;
+      margin: 8px 0 12px;
+    }
+    .flow {
+      display: grid;
+      grid-template-columns: 1fr auto 1fr auto 1fr;
+      gap: 6px;
+      align-items: stretch;
+      margin: 10px 0 14px;
+      font-size: 8.5pt;
+    }
+    .cell {
+      background: #EBE4D7;
+      border: 1px solid #C9C0B0;
+      padding: 8px;
+    }
+    .cell strong { display: block; font-size: 9pt; }
+    .arrow { display: flex; align-items: center; color: #2F4A3C; font-size: 14pt; }
+    .heads {
+      display: grid;
+      grid-template-columns: 1fr 1fr 1fr;
+      gap: 8px;
+      margin: 8px 0 12px;
+    }
+    .head {
+      border: 1px solid #C9C0B0;
+      padding: 8px 10px;
+      min-height: 92px;
+    }
+    .head .tag {
+      font-family: "Liberation Mono", monospace;
+      font-size: 7.5pt;
+      letter-spacing: 0.12em;
+      color: #6B645B;
+    }
+    ol.steps { padding-left: 18px; margin: 6px 0 10px; }
+    ol.steps li { margin-bottom: 4px; }
+    ul.tight { padding-left: 16px; margin: 4px 0 8px; }
+    ul.tight li { margin-bottom: 2px; }
+    .two {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+    }
+    .eq {
+      font-family: "Liberation Mono", "WenQuanYi Zen Hei Mono", monospace;
+      font-size: 8.4pt;
+      background: #EBE4D7;
+      padding: 6px 8px;
+      margin: 4px 0 8px;
+      white-space: pre-wrap;
+    }
+    table { page-break-inside: avoid; }
+    .box, .warn, .ok, .head, .cell { page-break-inside: avoid; }
+    h2 { page-break-after: avoid; }
+      margin-top: 18px;
+      font-size: 8pt;
+      color: #6B645B;
+      border-top: 1px solid #C9C0B0;
+      padding-top: 6px;
+    }
+    .small { font-size: 8.5pt; color: #4A453E; }
+  </style>
+</head>
+<body>
+
+<section class="cover page">
+  <div>
+    <span class="mark">GOKI WORKPAPER</span>
+    <p class="kicker" style="margin-top:28px;">Technical note · TN-2026-0915</p>
+    <h1 style="margin-top:10px;">勾稽关系审计模型说明</h1>
+    <p style="font-size:13pt; color:#2F4A3C; margin-top:8px;">结构 · 输入输出 · 如何用在真实财报上</p>
+    <p class="muted" style="max-width:420px; margin-top:18px;">
+      一份给底稿的说明书。合成样本上训练的三头网络做什么、不做什么；
+      港股蓝筹年报走哪条路径、为什么未分配利润和固定资产会留下缺口。
+    </p>
+  </div>
+  <dl class="meta">
+    <div>
+      <dt>项目</dt><dd>GOKI 财务报表勾稽关系审计</dd>
+      <dt>对象</dt><dd>合成 1,000 发行人 + 恒生蓝筹 FY2025 实报</dd>
+      <dt>实现</dt><dd>OCaml / OCANNL（cc 后端）+ 浏览器副本</dd>
+    </div>
+    <div>
+      <dt>版本</dt><dd>1.0 · 2026-09-15</dd>
+      <dt>密级</dt><dd>工作底稿 · 非鉴证意见</dd>
+      <dt>单位</dt><dd>金额一律折成「万元」后再入模</dd>
+    </div>
+  </dl>
+</section>
+
+<section class="page">
+  <h2>1. 这份说明回答什么</h2>
+  <p>模型不是「读完年报判断造假」。它做三件更窄的事：</p>
+  <ol class="steps">
+    <li>把两年科目轧成十条勾稽残差；</li>
+    <li>在<strong>合成样本</strong>上，用小网络把「注入的真错误」从舍入和重分类里分出来；</li>
+    <li>在<strong>真实年报</strong>上，只跑规则，并把恒等拆成「硬」和「口径」，缺口要能被附注吃掉。</li>
+  </ol>
+  <div class="warn">
+    合成样本上训好的 MLP <strong>不能</strong>直接给港股年报打舞弊分。HKFRS 比简化恒等多了 OCI、回购、处置、在建、汇兑。模型会把这些当成「真错误」。实报走规则路径，不走分类头。
+  </div>
+
+  <h2>2. 全链路</h2>
+  <div class="flow">
+    <div class="cell"><strong>两年科目</strong>利润表 / 资产负债 / 现金流量 38 栏 × {t−1, t}</div>
+    <div class="arrow">→</div>
+    <div class="cell"><strong>十条勾稽</strong>8 条恒等 + 2 条分析性 残差、相对残差、同比</div>
+    <div class="arrow">→</div>
+    <div class="cell"><strong>38 维特征</strong>10×3 + 8 行业 one-hot 训练集 z-score</div>
+  </div>
+  <div class="heads">
+    <div class="head">
+      <div class="tag">HEAD A · 分类</div>
+      <strong>MLP 38→64→32→1</strong>
+      <p class="small" style="margin:6px 0 0;">输出 p(真错误)。只在合成样本上训练与打分。</p>
+    </div>
+    <div class="head">
+      <div class="tag">HEAD B · 异常</div>
+      <strong>自编码器 38→16→8</strong>
+      <p class="small" style="margin:6px 0 0;">只在干净样本上训。重构误差高 = 勾稽形态未见过。</p>
+    </div>
+    <div class="head">
+      <div class="tag">HEAD C · 对照</div>
+      <strong>现金回归 10→32→1</strong>
+      <p class="small" style="margin:6px 0 0;">用结构比率预测现金/资产，残差对照账上现金。</p>
+    </div>
+  </div>
+  <p class="small">OCaml 侧用 OCANNL 的 <span class="mono">let%op</span> 写出同一张图，cc 后端编成 <span class="mono">goki_mlp_forward</span>；浏览器里是逐元素 FMA 副本，seed=3 可对黄金文件。</p>
+</section>
+
+<section class="page">
+  <h2>3. 输入：科目字典 YearBooks</h2>
+  <p>一份发行人 = 行业、规模、两年 YearBooks。金额单位：万元。真实港股先把百万/亿元折成万元，再塞进同一套栏位。</p>
+  <table>
+    <thead>
+      <tr><th>表</th><th>栏位</th><th>说明</th></tr>
+    </thead>
+    <tbody>
+      <tr><td>利润表</td><td class="mono">revenue, cogs, gp, opex, da, ebit, interest, pretax, tax, ni, dividends</td><td>毛利、EBIT 为派生。ni 取归母或公司口径，映射时写进 caveats。</td></tr>
+      <tr><td>资产负债表</td><td class="mono">cash, ar, inv, ppe, otherCa, otherNca, ap, stDebt, taxPay, ltDebt, otherL, shareCap, re</td><td>other* 是塞剩下的塞子，用来强制 R01 闭合。</td></tr>
+      <tr><td>现金流量</td><td class="mono">cfo, cfi, cff, netCf, capex, taxPaid</td><td>netCf 应对 Δcash。未披露经营现金流时，实报路径用间接法回填，并标记。</td></tr>
+    </tbody>
+  </table>
+  <p class="small">R01 恒等：<span class="mono">cash+ar+inv+ppe+otherCa+otherNca = ap+stDebt+taxPay+ltDebt+otherL+shareCap+re</span>。映射时把未单列的资产/负债/权益推进 other* 或 re，硬恒等必须轧平。</p>
+
+  <h2>4. 十条勾稽 → 38 维特征</h2>
+  <p>每条规则产出残差 residual、尺度 scale、相对残差 rel = residual / scale。两年样本里同比 yoy 取当年 rel。</p>
+  <table>
+    <thead>
+      <tr><th>代码</th><th>名称</th><th>种类</th><th>简化公式</th></tr>
+    </thead>
+    <tbody>
+      <tr><td class="mono">R01</td><td>资产负债恒等</td><td>硬</td><td class="mono">资产 − (负债+权益) = 0</td></tr>
+      <tr><td class="mono">R02</td><td>货币资金滚存</td><td>口径</td><td class="mono">Δcash − netCf = 0</td></tr>
+      <tr><td class="mono">R03</td><td>未分配利润滚存</td><td>口径</td><td class="mono">ΔRE − (NI − 分红) = 0</td></tr>
+      <tr><td class="mono">R04</td><td>净利润桥</td><td>硬</td><td class="mono">pretax − tax − NI = 0</td></tr>
+      <tr><td class="mono">R05</td><td>毛利勾稽</td><td>硬</td><td class="mono">revenue − cogs − gp = 0</td></tr>
+      <tr><td class="mono">R06</td><td>间接法现金流</td><td>口径</td><td class="mono">CFO − (NI+DA−ΔAR−ΔInv+ΔAP) = 0</td></tr>
+      <tr><td class="mono">R07</td><td>固定资产滚存</td><td>口径</td><td class="mono">PPE − (期初 + capex − DA) = 0</td></tr>
+      <tr><td class="mono">R08</td><td>应交税费滚存</td><td>口径</td><td class="mono">taxPay − (期初 + tax − taxPaid) = 0</td></tr>
+      <tr><td class="mono">R09</td><td>应收／收入</td><td>分析</td><td class="mono">AR/rev 本年 − 上年</td></tr>
+      <tr><td class="mono">R10</td><td>存货／成本</td><td>分析</td><td class="mono">Inv/cogs 本年 − 上年</td></tr>
+    </tbody>
+  </table>
+  <div class="eq">特征 x ∈ R<sup>38</sup>
+对规则 i = 0..9：
+  x[3i]     = sign(residual) · log(1 + |residual|)     // 金额尺度
+  x[3i+1]   = rel                                       // 相对残差
+  x[3i+2]   = yoy                                       // 两年样本 = rel
+对行业 k = 0..7：
+  x[30+k]   = 1  若 issuer.industry = k，否则 0
+训练折内 z-score：x̂ = (x − μ_train) / (σ_train + 1e-6)</div>
+</section>
+
+<section class="page">
+  <h2>5. 三个头：结构与输入输出</h2>
+
+  <h3>5.1 分类头 MLP</h3>
+  <div class="eq">h1 = ReLU(W1 x̂ + b1)     W1 ∈ R^{64×38}
+h2 = ReLU(W2 h1 + b2)     W2 ∈ R^{32×64}
+z  = W3 · h2 + b3         W3 ∈ R^{32}
+p  = σ(z)                 p(真错误) ∈ (0,1)</div>
+  <table>
+    <thead><tr><th>项</th><th>值</th></tr></thead>
+    <tbody>
+      <tr><td>参数量</td><td class="mono">64×38 + 64 + 32×64 + 32 + 32 + 1 = 4,609</td></tr>
+      <tr><td>初始化</td><td>中心均匀 U[−0.25, 0.25)，OCANNL <span class="mono">fixed_state_for_init = 3</span></td></tr>
+      <tr><td>损失</td><td>BCE-with-logits：max(z,0) − z y + log(1+exp(−|z|))</td></tr>
+      <tr><td>正则</td><td>权重 L2，系数 1e-4</td></tr>
+      <tr><td>标签</td><td>y = 1 当且仅当 inject = true_error；clean / rounding / reclass 均为 0</td></tr>
+      <tr><td>解释</td><td>显著性 |∂z/∂x̂_j · x̂_j|，取前 6 个特征名</td></tr>
+    </tbody>
+  </table>
+
+  <h3>5.2 自编码器</h3>
+  <p>38 → 16 → 8（瓶颈）→ 16 → 38，ReLU 隐层，线性重建。只在 y=0 的 batch 上做 SGD。输出 aeErr = 平均绝对重构误差。用来抓「勾稽形态不像干净样本」，不是分类概率。</p>
+
+  <h3>5.3 现金回归</h3>
+  <p>输入 10 个结构比率（均除以总资产）：AR、存货、PPE、应付、有息债、收入、净利润、CFO、未分配利润、所得税。隐层 32，线性输出预测现金/资产。cashResidual = 预测 − 账上。合成样本里现金被掏空时，这条会先亮。</p>
+
+  <h2>6. 训练协议（只对合成样本）</h2>
+  <table>
+    <thead><tr><th>项</th><th>值</th></tr></thead>
+    <tbody>
+      <tr><td>样本量</td><td>1,000 发行人，确定种子 seed = 3</td></tr>
+      <tr><td>注入</td><td>clean / 舍入 / 重分类 / 真错误（现金空洞、资产负债缺口、RE 断裂、虚增收入、PPE 虚增、税断裂）</td></tr>
+      <tr><td>切分</td><td>80 / 10 / 10，切分种子 42；scaler 只在训练集拟合</td></tr>
+      <tr><td>优化</td><td>14 epoch，batch 32，学习率从 0.12 线性降到 0.01</td></tr>
+      <tr><td>黄金文件</td><td>参数校验和、train/val BCE 尾、test AUC 写入 goki_mlp.expected</td></tr>
+    </tbody>
+  </table>
+  <div class="ok">
+    合成测试折上，MLP 要把真错误与舍入/重分类分开。AUC 接近 1 只说明<strong>在自己生成的分布上</strong>可分，不说明对 HKFRS 年报有鉴别力。
+  </div>
+</section>
+
+<section class="page">
+  <h2>7. 合成样本上如何应用</h2>
+  <p>队列按 pError 降序。分诊同时看概率和最大恒等相对残差：</p>
+  <div class="eq">maxRel = max_{i=0..7} |rel_i|
+例外  若 p ≥ 0.50  或  maxRel ≥ 5%
+复核  若 p ≥ 0.20  或  maxRel ≥ 1%
+通过  其余</div>
+  <p>工作底稿上同时给出：十条残差、显著性前六、自编码误差、现金残差、处置（通过 / 复核 / 例外）和文字说明。这是模型的「产品输出」。</p>
+
+  <h2>8. 真实财报上如何应用（港股蓝筹）</h2>
+  <p>真实年报<strong>不进入 MLP</strong>。路径如下。</p>
+  <ol class="steps">
+    <li><strong>取数。</strong>年报合并口径，利润表、资产负债、现金流量、权益变动、PPE 附注。币种保留（港元 / 人民币 / 美元），期间标签写成 FY2025。</li>
+    <li><strong>折单位。</strong>百万×100、亿元×10,000，全部进万元。</li>
+    <li><strong>映射。</strong>收入、成本、税、净利润、现金、应收、存货、PPE、应付、有息债、股本、CFO/CFI/CFF、资本开支、折旧、分红，能对上的对上。对不上的推进 otherCa / otherNca / otherL；除股本外的权益推进 re，以便 R01 闭合。</li>
+    <li><strong>缺失经营现金流。</strong>若年报未给出可用的 CFO，用简化间接法回填 NI+DA−ΔAR−ΔInv+ΔAP，并在 caveats 标明「回填，非披露数」。有披露的（腾讯、移动、中海油、美团）用原文。</li>
+    <li><strong>缺失净增加额。</strong>netCf 缺则取 Δcash，避免 R02 被自己的取数空洞打爆。</li>
+    <li><strong>跑十条规则。</strong>得到 residual / rel。不标准化，不进网络。</li>
+    <li><strong>分诊只看硬恒等。</strong></li>
+  </ol>
+  <div class="eq">maxHard = max(|R01|, |R04|, |R05|)     // 映射诚实则应 ≈ 0
+maxSoft = max(|R02|, |R03|, |R06|, |R07|, |R08|)
+例外  若 maxHard ≥ 1%     → 取数或串户，先查映射
+复核  若 maxSoft ≥ 1%     → 写底稿解释口径
+通过  其余</div>
+  <div class="warn">
+    不要把合成 MLP 的 pError 印在港股名单上。OCI 和回购会把 p 顶到「例外」，那是公式短，不是舞弊信号。
+  </div>
+</section>
+
+<section class="page">
+  <h2>9. 硬恒等与口径残差</h2>
+  <div class="two">
+    <div class="box">
+      <strong>硬 · 必须闭合</strong>
+      <ul class="tight">
+        <li>R01 资产负债</li>
+        <li>R04 利润总额 − 税 − 净利润</li>
+        <li>R05 收入 − 成本 − 毛利</li>
+      </ul>
+      <p class="small" style="margin:0;">这三条在同一张表、同一口径下是算术。非零只可能是漏列、串户、取数层级不一致。</p>
+    </div>
+    <div class="box">
+      <strong>口径 · 必须能解释</strong>
+      <ul class="tight">
+        <li>R02 现金：汇兑、受限资金</li>
+        <li>R03 未分配利润：OCI、回购、储备、NCI</li>
+        <li>R06 间接法：其它营运资本、减值、股份支付</li>
+        <li>R07 固定资产：处置、在建、重估、使用权、折耗</li>
+        <li>R08 应交税：递延、预缴、税务管辖</li>
+      </ul>
+    </div>
+  </div>
+  <h3>完整式（底稿要写的，模型没写进去）</h3>
+  <div class="eq">R03 完整：
+  ΔRE = NI − 分红 + OCI − 回购 ± 储备结转 ± 少数股东 ± 股份支付
+
+R07 完整：
+  期末 PPE = 期初 + 购置 + 在建结转 − 折旧 − 处置净值 − 减值 ± 汇兑 ± 重估
+            ± 使用权资产（若并入 PPE）</div>
+  <p>合成样本按截断式生成，所以截断式在那里是恒等。实报按完整式编报，截断式必然有缺口。缺口方向可提示附注该翻哪一页：</p>
+  <table>
+    <thead><tr><th>规则</th><th>缺口符号</th><th>先看什么</th></tr></thead>
+    <tbody>
+      <tr><td>R03</td><td>负（ΔRE 小于 NI−分红）</td><td>回购、拨入法定/一般储备、OCI 亏损、外币折算</td></tr>
+      <tr><td>R03</td><td>正</td><td>OCI 盈余、重估、注资进储备、股份支付、投资物业公允</td></tr>
+      <tr><td>R07</td><td>期末低于滚存</td><td>资本开支进了在建/无形/投资物业，或处置、折耗、减值</td></tr>
+      <tr><td>R07</td><td>期末高于滚存</td><td>并表购置、在建结转、重估、汇兑、使用权资产</td></tr>
+    </tbody>
+  </table>
+</section>
+
+<section class="page">
+  <h2>10. 工作底稿示例：00700 腾讯 FY2025</h2>
+  <p>映射后硬恒等均为 0。口径残差最大在 R03。</p>
+  <table>
+    <thead>
+      <tr><th>项目</th><th class="num">金额（万元人民币）</th></tr>
+    </thead>
+    <tbody>
+      <tr><td>Δ 未分配利润（映射进 re 的权益变动）</td><td class="num">11,840,600</td></tr>
+      <tr><td>净利润 − 分红</td><td class="num">22,980,100</td></tr>
+      <tr><td>R03 简化缺口</td><td class="num">−11,139,500</td></tr>
+      <tr><td>相对残差</td><td class="num">−48.5%</td></tr>
+      <tr><td>Δ PPE</td><td class="num">6,972,000</td></tr>
+      <tr><td>资本开支 − 折旧</td><td class="num">8,748,200</td></tr>
+      <tr><td>R07 简化缺口</td><td class="num">−1,776,200</td></tr>
+    </tbody>
+  </table>
+  <div class="ok">
+    分诊：硬恒等 0 → 不是例外。R03 / R07 有缺口 → 复核。解释：股份回购与其它综合收益进权益、资本开支部分进在建/无形，不是利润作假。写入 caveats，处置记「复核」。
+  </div>
+  <p class="small">同批 11 家恒生蓝筹：硬恒等全部为 0；全部进入复核。口径残差从恒生银行 2.3% 到港交所 132%（总部资本开支未进 PPE 净额）不等。残差大小排序的是「简化公式有多不完整」，不是「谁更可能舞弊」。</p>
+
+  <h2>11. OCaml / OCANNL 编译件</h2>
+  <p>权威训练图在 OCaml：<span class="mono">hid1 = relu (w1 * x + b1)</span>，再 32 维，再 logit。BCE-with-logits 与浏览器副本同一式。cc 后端把前向编成：</p>
+  <div class="eq">void goki_mlp_forward(const float *x /* [38] */, float *y /* [1] */);
+/* packed FMA, dtype=f32, seed=3, params=4609
+   输入必须是「训练集 μ/σ 标准化后的 38 维」
+   输出 y[0] = sigmoid(logit) = p(真错误) */</div>
+  <p>黄金文件核对：参数校验和、尾部 BCE、test AUC。比特级可复现是这条链路存在的理由——底稿要能说出「同一个种子、同一份 .expected」。它不自动获得在真实年报上的外部效度。</p>
+</section>
+
+<section class="page">
+  <h2>12. 边界：模型不做什么</h2>
+  <ul class="tight">
+    <li>不读 PDF 年报，不抽附注文本。映射是人做的。</li>
+    <li>不处理多币种折算、分部、保险合同（IFRS 17）、银行存贷款的完整监管表。</li>
+    <li>不把「复核」当成审计意见。复核 = 需要一句能被附注支撑的解释。</li>
+    <li>不在实报上微调或再训练。要用真实标签，得先有「已确认错报」样本，目前没有。</li>
+    <li>分析性程序 R09 / R10 不是恒等，周转变化要结合行业，单独不升级为例外。</li>
+  </ul>
+
+  <h2>13. 把下一份年报喂进去的检查单</h2>
+  <ol class="steps">
+    <li>合并利润表、资产负债、现金流量、权益变动、PPE 变动表齐了没有。</li>
+    <li>单位、币种、期间写进 issuer 元数据。</li>
+    <li>R01 / R04 / R05 是否为零。不为零先改映射，不要改阈值。</li>
+    <li>R03 缺口能否用权益变动表的 OCI / 回购 / 储备行对上数量级。</li>
+    <li>R07 缺口能否用 PPE 附注的购置、在建、处置、折旧行对上数量级。</li>
+    <li>R02 是否被汇兑或受限现金解释；R06 是否被「其它营运资本」解释。</li>
+    <li>解释得了 → 复核并归档 caveats。解释不了、且硬恒等也裂了 → 例外，回到取数。</li>
+    <li>仍然不要把 MLP 概率写进这张底稿。</li>
+  </ol>
+
+  <div class="box">
+    <strong>一句话</strong>
+    <p style="margin:6px 0 0;">38 维勾稽特征进一个 4,609 参数的 MLP，只为在合成世界里分开「真错误」和「舍入」。真实年报用同一套规则当尺子，用硬恒等找映射错误，用口径残差逼附注。模型结构很浅；难的是科目怎么进这 38 栏。</p>
+  </div>
+  <footer class="note">
+    GOKI TN-2026-0915 · 勾稽关系审计模型说明 · 工作底稿，不构成鉴证 · 金额单位万元
+  </footer>
+</section>
+
+</body>
+</html>

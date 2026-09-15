@@ -1,0 +1,4 @@
+(library
+ (name goki_fs)
+ (modules fs)
+ (libraries base stdio))

@@ -1,0 +1,13 @@
+(executable
+ (public_name goki)
+ (name goki)
+ (libraries base stdio ocannl goki_fs)
+ (preprocess
+  (pps ppx_here ppx_ocannl)))
+
+(rule
+ (alias runtest)
+ (action
+  (progn
+   (with-stdout-to goki.actual (run ./goki.exe))
+   (diff? goki.expected goki.actual))))

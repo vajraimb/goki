@@ -1,0 +1,7 @@
+backend=cc
+fixed_state_for_init=3
+n_features=38
+params=4609
+epochs=14
+split=80/10/10 seed=42
+bit_stable=true

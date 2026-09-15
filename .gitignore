@@ -1,0 +1,32 @@
+# deps & build
+node_modules/
+.output/
+.tanstack/
+.vite/
+dist/
+.vercel/
+*.tsbuildinfo
+.node_modules.lock
+
+# env & secrets
+.env
+.env.*
+!.env.example
+
+# grok sandbox internals
+.grok/
+public/__grok/
+
+# local QA / scratch
+screenshots/
+artifacts/
+AGENTS.md
+AGENTS.project.md
+
+attachments/
+*.log
+.DS_Store
+
+# editor
+.idea/
+.vscode/

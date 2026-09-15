@@ -1,0 +1,14 @@
+(lang dune 3.18)
+(name goki)
+(generate_opam_files true)
+
+(package
+ (name goki)
+ (synopsis "Financial-statement tie-in residual auditor trained with OCANNL")
+ (depends
+  (ocaml (>= 5.3.0))
+  (dune (>= 3.18))
+  base
+  stdio
+  ocannl
+  (ppx_ocannl :dev)))
