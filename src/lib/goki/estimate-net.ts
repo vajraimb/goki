@@ -10,6 +10,7 @@ import { mulberry32, shuffleInPlace } from "./rng";
 import { generatePackCloserIssuers } from "./closer-synth";
 import { mergeNotes } from "./note-rules";
 import { totalAssets } from "./rules";
+import { packOf } from "./packs";
 import type { EstimateScore, Issuer } from "./types";
 
 function rocAuc(scores: number[], labels: number[]): number {
@@ -254,6 +255,333 @@ export function scoreFv(issuer: Issuer): EstimateScore | null {
   return scoreWith(mdl, row.x, row.ratio, row.peer);
 }
 
-export function ensureEstimateNets() {
-  return { ecl: getEclNet(), fv: getFvNet() };
+export const DDA_NAMES = [
+  "da/ppe",
+  "prior da/ppe",
+  "Δrate",
+  "capex/ppe",
+  "impair/ppe",
+  "da/rev",
+  "ni/ppe",
+  "ppe/A",
+];
+
+function ddaRow(issuer: Issuer): { x: number[]; rate: number; prior: number } {
+  const n = mergeNotes(issuer.currNotes);
+  const ppe = Math.max(issuer.curr.ppe, 1);
+  const priorPpe = Math.max(issuer.prior.ppe, 1);
+  const rate = issuer.curr.da / ppe;
+  const prior = issuer.prior.da / priorPpe;
+  const a = Math.max(totalAssets(issuer.curr), 1);
+  return {
+    rate,
+    prior,
+    x: [
+      rate,
+      prior,
+      rate - prior,
+      issuer.curr.capex / ppe,
+      n.ppeImpair / ppe,
+      issuer.curr.da / Math.max(issuer.curr.revenue, 1),
+      issuer.curr.ni / ppe,
+      ppe / a,
+    ],
+  };
 }
+
+let ddaMdl: EstimateModel | null = null;
+
+export function getDdaNet(): EstimateModel {
+  if (ddaMdl) return ddaMdl;
+  const rng = mulberry32(47);
+  const rows: { x: number[]; y: number }[] = [];
+  for (let i = 0; i < 480; i++) {
+    const kind = i % 3 === 0 ? "telco" : rng() < 0.55 ? "oil" : "power";
+    let prior: number;
+    let ppeA: number;
+    let daRev: number;
+    let capex: number;
+    if (kind === "telco") {
+      prior = 0.22 + rng() * 0.08;
+      ppeA = 0.28 + rng() * 0.12;
+      daRev = 0.16 + rng() * 0.06;
+      capex = 0.18 + rng() * 0.08;
+    } else if (kind === "oil") {
+      prior = 0.09 + rng() * 0.04;
+      ppeA = 0.5 + rng() * 0.15;
+      daRev = 0.08 + rng() * 0.12;
+      capex = 0.08 + rng() * 0.12;
+    } else {
+      prior = 0.04 + rng() * 0.025;
+      ppeA = 0.55 + rng() * 0.15;
+      daRev = 0.08 + rng() * 0.12;
+      capex = 0.08 + rng() * 0.12;
+    }
+    let rate = prior + (rng() - 0.5) * 0.012;
+    let y = 0;
+    if (i % 4 === 0) {
+      rate = rng() < 0.5 ? prior + 0.05 + rng() * 0.06 : Math.max(0.005, prior - 0.05 - rng() * 0.03);
+      y = 1;
+    }
+    const impair = y ? rng() * 0.03 : rng() * 0.004;
+    const niPpe = kind === "telco" ? 0.16 + rng() * 0.08 : 0.08 + rng() * 0.12;
+    rows.push({
+      x: [rate, prior, rate - prior, capex, impair, daRev, niPpe, ppeA],
+      y,
+    });
+  }
+  ddaMdl = trainBinary(47, rows, [...DDA_NAMES]);
+  return ddaMdl;
+}
+
+export function scoreDda(issuer: Issuer): EstimateScore | null {
+  if (packOf(issuer) !== "energy" && packOf(issuer) !== "telco") return null;
+  if (issuer.curr.ppe <= 0 || issuer.curr.da <= 0) return null;
+  const mdl = getDdaNet();
+  const row = ddaRow(issuer);
+  return scoreWith(mdl, row.x, row.rate, row.prior);
+}
+
+export const BB_NAMES = [
+  "buyback/|NI|",
+  "buyback/eq",
+  "buyback/rev",
+  "cfo/ni",
+  "stInvest/A",
+  "ni/eq",
+  "div/ni",
+  "Δcash/A",
+];
+
+function bbRow(issuer: Issuer): { x: number[]; ratio: number; peer: number } {
+  const n = mergeNotes(issuer.currNotes);
+  const eq = Math.max(issuer.curr.shareCap + issuer.curr.re, 1);
+  const niAbs = Math.max(Math.abs(issuer.curr.ni), 1);
+  const ratio = n.buyback / niAbs;
+  const a = Math.max(totalAssets(issuer.curr), 1);
+  return {
+    ratio,
+    peer: 0.22,
+    x: [
+      ratio,
+      n.buyback / eq,
+      n.buyback / Math.max(issuer.curr.revenue, 1),
+      issuer.curr.cfo / niAbs,
+      n.stInvest / a,
+      issuer.curr.ni / eq,
+      issuer.curr.dividends / niAbs,
+      (issuer.curr.cash - issuer.prior.cash) / a,
+    ],
+  };
+}
+
+let bbMdl: EstimateModel | null = null;
+
+export function getBuybackNet(): EstimateModel {
+  if (bbMdl) return bbMdl;
+  const rng = mulberry32(49);
+  const rows: { x: number[]; y: number }[] = [];
+  for (let i = 0; i < 420; i++) {
+    let ratio = 0.04 + rng() * 0.35;
+    let y = 0;
+    if (i % 4 === 0) {
+      ratio = 0.7 + rng() * 0.9;
+      y = 1;
+    }
+    const eq = 0.02 + rng() * 0.08;
+    const rev = 0.02 + rng() * 0.08;
+    const cfoNi = 0.8 + rng() * 0.6;
+    const stA = 0.05 + rng() * 0.12;
+    const niEq = 0.08 + rng() * 0.12;
+    const div = 0.1 + rng() * 0.25;
+    const dCash = (rng() - 0.5) * 0.04;
+    rows.push({
+      x: [ratio, eq, rev, cfoNi, stA, niEq, div, dCash],
+      y,
+    });
+  }
+  bbMdl = trainBinary(49, rows, [...BB_NAMES]);
+  return bbMdl;
+}
+
+export function scoreBuyback(issuer: Issuer): EstimateScore | null {
+  if (packOf(issuer) !== "platform") return null;
+  const n = mergeNotes(issuer.currNotes);
+  if (n.buyback <= 0) return null;
+  const mdl = getBuybackNet();
+  const row = bbRow(issuer);
+  const scored = scoreWith(mdl, row.x, row.ratio, row.peer);
+  let band: EstimateScore["band"] = "pass";
+  if (row.ratio >= 0.8 || scored.pOutlier >= 0.85) band = "exception";
+  else if (row.ratio >= 0.45 || scored.pOutlier >= 0.55) band = "review";
+  return { ...scored, band };
+}
+
+export const SBC_NAMES = [
+  "sbp/opex",
+  "sbp/|NI|",
+  "sbp/eq",
+  "opex/rev",
+  "ni/eq",
+  "buyback/|NI|",
+  "stInvest/A",
+  "Δeq",
+];
+
+function sbcRow(issuer: Issuer): { x: number[]; ratio: number; peer: number } {
+  const n = mergeNotes(issuer.currNotes);
+  const opex = Math.max(issuer.curr.opex, 1);
+  const niAbs = Math.max(Math.abs(issuer.curr.ni), 1);
+  const eq = Math.max(issuer.curr.shareCap + issuer.curr.re, 1);
+  const a = Math.max(totalAssets(issuer.curr), 1);
+  const ratio = n.sbp / opex;
+  return {
+    ratio,
+    peer: 0.12,
+    x: [
+      ratio,
+      n.sbp / niAbs,
+      n.sbp / eq,
+      issuer.curr.opex / Math.max(issuer.curr.revenue, 1),
+      issuer.curr.ni / eq,
+      n.buyback / niAbs,
+      n.stInvest / a,
+      (eq - (issuer.prior.shareCap + issuer.prior.re)) / eq,
+    ],
+  };
+}
+
+let sbcMdl: EstimateModel | null = null;
+
+export function getSbcNet(): EstimateModel {
+  if (sbcMdl) return sbcMdl;
+  const rng = mulberry32(51);
+  const rows: { x: number[]; y: number }[] = [];
+  for (let i = 0; i < 420; i++) {
+    let ratio = 0.06 + rng() * 0.14;
+    let y = 0;
+    if (i % 4 === 0) {
+      ratio = 0.32 + rng() * 0.25;
+      y = 1;
+    }
+    rows.push({
+      x: [
+        ratio,
+        ratio * (0.4 + rng()),
+        0.02 + rng() * 0.04,
+        0.2 + rng() * 0.15,
+        0.08 + rng() * 0.1,
+        0.1 + rng() * 0.25,
+        0.08 + rng() * 0.12,
+        (rng() - 0.3) * 0.1,
+      ],
+      y,
+    });
+  }
+  sbcMdl = trainBinary(51, rows, [...SBC_NAMES]);
+  return sbcMdl;
+}
+
+export function scoreSbc(issuer: Issuer): EstimateScore | null {
+  if (packOf(issuer) !== "platform") return null;
+  const n = mergeNotes(issuer.currNotes);
+  if (n.sbp <= 0) return null;
+  const mdl = getSbcNet();
+  const row = sbcRow(issuer);
+  const scored = scoreWith(mdl, row.x, row.ratio, row.peer);
+  let band: EstimateScore["band"] = "pass";
+  if (row.ratio >= 0.3 || scored.pOutlier >= 0.85) band = "exception";
+  else if (row.ratio >= 0.2 || scored.pOutlier >= 0.55) band = "review";
+  return { ...scored, band };
+}
+
+export const CL_NAMES = [
+  "cl/rev",
+  "release/cl_beg",
+  "Δcl/rev",
+  "cl/A",
+  "gp/rev",
+  "opex/rev",
+  "cfo/rev",
+  "stInvest/A",
+];
+
+function clRow(issuer: Issuer): { x: number[]; ratio: number; peer: number } {
+  const n = mergeNotes(issuer.currNotes);
+  const p = mergeNotes(issuer.priorNotes);
+  const rev = Math.max(issuer.curr.revenue, 1);
+  const a = Math.max(totalAssets(issuer.curr), 1);
+  const ratio = n.cl / rev;
+  const relBeg = p.cl > 0 ? n.clRelease / p.cl : 0;
+  return {
+    ratio,
+    peer: 0.1,
+    x: [
+      ratio,
+      relBeg,
+      (n.cl - p.cl) / rev,
+      n.cl / a,
+      issuer.curr.gp / rev,
+      issuer.curr.opex / rev,
+      issuer.curr.cfo / rev,
+      n.stInvest / a,
+    ],
+  };
+}
+
+let clMdl: EstimateModel | null = null;
+
+export function getClNet(): EstimateModel {
+  if (clMdl) return clMdl;
+  const rng = mulberry32(53);
+  const rows: { x: number[]; y: number }[] = [];
+  for (let i = 0; i < 420; i++) {
+    let ratio = 0.04 + rng() * 0.14;
+    let y = 0;
+    if (i % 4 === 0) {
+      ratio = 0.35 + rng() * 0.25;
+      y = 1;
+    }
+    rows.push({
+      x: [
+        ratio,
+        0.85 + rng() * 0.12,
+        (rng() - 0.4) * 0.04,
+        ratio * 0.4,
+        0.4 + rng() * 0.2,
+        0.2 + rng() * 0.15,
+        0.15 + rng() * 0.2,
+        0.08 + rng() * 0.1,
+      ],
+      y,
+    });
+  }
+  clMdl = trainBinary(53, rows, [...CL_NAMES]);
+  return clMdl;
+}
+
+export function scoreDeferred(issuer: Issuer): EstimateScore | null {
+  const pack = packOf(issuer);
+  if (pack !== "platform" && pack !== "telco") return null;
+  const n = mergeNotes(issuer.currNotes);
+  if (n.cl <= 0) return null;
+  const mdl = getClNet();
+  const row = clRow(issuer);
+  const scored = scoreWith(mdl, row.x, row.ratio, row.peer);
+  let band: EstimateScore["band"] = "pass";
+  if (row.ratio >= 0.28 || scored.pOutlier >= 0.85) band = "exception";
+  else if (row.ratio >= 0.18 || scored.pOutlier >= 0.55) band = "review";
+  return { ...scored, band };
+}
+
+export function ensureEstimateNets() {
+  return {
+    ecl: getEclNet(),
+    fv: getFvNet(),
+    dda: getDdaNet(),
+    buyback: getBuybackNet(),
+    sbc: getSbcNet(),
+    deferred: getClNet(),
+  };
+}
+

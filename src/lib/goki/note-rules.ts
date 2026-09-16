@@ -53,6 +53,11 @@ export const EMPTY_NOTES: NoteBooks = {
   clearingLiab: 0,
   stInvest: 0,
   fuelClause: 0,
+  cl: 0,
+  clAdd: 0,
+  clRelease: 0,
+  cip: 0,
+  contractAsset: 0,
 };
 
 export function mergeNotes(base: NoteBooks | undefined, over?: Partial<NoteBooks>): NoteBooks {

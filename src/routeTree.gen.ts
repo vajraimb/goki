@@ -13,6 +13,7 @@ import { Route as IndexRouteImport } from './routes/index'
 import { Route as CloserRouteImport } from './routes/closer'
 import { Route as HkRouteImport } from './routes/hk'
 import { Route as LabRouteImport } from './routes/lab'
+import { Route as MapRouteImport } from './routes/map'
 import { Route as ModelsRouteImport } from './routes/models'
 import { Route as RulesRouteImport } from './routes/rules'
 import { Route as IssuerIdRouteImport } from './routes/issuer.$id'
@@ -37,6 +38,11 @@ const LabRoute = LabRouteImport.update({
   path: '/lab',
   getParentRoute: () => rootRouteImport,
 } as any)
+const MapRoute = MapRouteImport.update({
+  id: '/map',
+  path: '/map',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ModelsRoute = ModelsRouteImport.update({
   id: '/models',
   path: '/models',
@@ -58,6 +64,7 @@ export interface FileRoutesByFullPath {
   '/closer': typeof CloserRoute
   '/hk': typeof HkRoute
   '/lab': typeof LabRoute
+  '/map': typeof MapRoute
   '/models': typeof ModelsRoute
   '/rules': typeof RulesRoute
   '/issuer/$id': typeof IssuerIdRoute
@@ -67,6 +74,7 @@ export interface FileRoutesByTo {
   '/closer': typeof CloserRoute
   '/hk': typeof HkRoute
   '/lab': typeof LabRoute
+  '/map': typeof MapRoute
   '/models': typeof ModelsRoute
   '/rules': typeof RulesRoute
   '/issuer/$id': typeof IssuerIdRoute
@@ -77,6 +85,7 @@ export interface FileRoutesById {
   '/closer': typeof CloserRoute
   '/hk': typeof HkRoute
   '/lab': typeof LabRoute
+  '/map': typeof MapRoute
   '/models': typeof ModelsRoute
   '/rules': typeof RulesRoute
   '/issuer/$id': typeof IssuerIdRoute
@@ -84,15 +93,31 @@ export interface FileRoutesById {
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
-    '/' | '/closer' | '/hk' | '/lab' | '/models' | '/rules' | '/issuer/$id'
+    | '/'
+    | '/closer'
+    | '/hk'
+    | '/lab'
+    | '/map'
+    | '/models'
+    | '/rules'
+    | '/issuer/$id'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/closer' | '/hk' | '/lab' | '/models' | '/rules' | '/issuer/$id'
+  to:
+    | '/'
+    | '/closer'
+    | '/hk'
+    | '/lab'
+    | '/map'
+    | '/models'
+    | '/rules'
+    | '/issuer/$id'
   id:
     | '__root__'
     | '/'
     | '/closer'
     | '/hk'
     | '/lab'
+    | '/map'
     | '/models'
     | '/rules'
     | '/issuer/$id'
@@ -103,6 +128,7 @@ export interface RootRouteChildren {
   CloserRoute: typeof CloserRoute
   HkRoute: typeof HkRoute
   LabRoute: typeof LabRoute
+  MapRoute: typeof MapRoute
   ModelsRoute: typeof ModelsRoute
   RulesRoute: typeof RulesRoute
   IssuerIdRoute: typeof IssuerIdRoute
@@ -138,6 +164,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof LabRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/map': {
+      id: '/map'
+      path: '/map'
+      fullPath: '/map'
+      preLoaderRoute: typeof MapRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/models': {
       id: '/models'
       path: '/models'
@@ -167,6 +200,7 @@ const rootRouteChildren: RootRouteChildren = {
   CloserRoute: CloserRoute,
   HkRoute: HkRoute,
   LabRoute: LabRoute,
+  MapRoute: MapRoute,
   ModelsRoute: ModelsRoute,
   RulesRoute: RulesRoute,
   IssuerIdRoute: IssuerIdRoute,

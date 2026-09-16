@@ -28,6 +28,7 @@ export function packOf(issuer: {
   const t = issuer.ticker;
   if (t === "00388") return "exchange";
   if (t === "00700" || t === "03690") return "platform";
+  if (t === "00941") return "telco";
   if (issuer.industry === "bank") return "bank";
   if (issuer.industry === "realty") return "realty";
   if (issuer.industry === "energy") return "energy";

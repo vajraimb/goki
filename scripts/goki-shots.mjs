@@ -25,7 +25,7 @@ for (const [w, h, tag] of [
 
   await page.goto(base + "/models", { waitUntil: "networkidle" });
   await page.waitForSelector("h1");
-  await page.waitForFunction(() => document.body.innerText.includes("Pack-Net") && document.body.innerText.includes("Completeness-Net") && document.body.innerText.includes("params"), { timeout: 45000 });
+  await page.waitForFunction(() => document.body.innerText.includes("Map-Net") && document.body.innerText.includes("Completeness-Net") && document.body.innerText.includes("params"), { timeout: 45000 });
   await shot(page, `models-${tag}`);
 
   await page.goto(base + "/issuer/hk-00005", { waitUntil: "networkidle" });
@@ -47,6 +47,11 @@ for (const [w, h, tag] of [
   await page.waitForSelector("h1");
   await page.waitForTimeout(1200);
   await shot(page, `cnooc-${tag}`);
+
+  await page.goto(base + "/map", { waitUntil: "networkidle" });
+  await page.waitForSelector("h1");
+  await page.waitForFunction(() => document.body.innerText.includes("科目映射") && document.body.innerText.includes("规范科目"), { timeout: 45000 });
+  await shot(page, `map-${tag}`);
 
   await page.goto(base + "/rules", { waitUntil: "networkidle" });
   await page.waitForSelector("h1");

@@ -4,6 +4,7 @@ import { cn } from "@/lib/cn";
 const NAV = [
   { to: "/", label: "队列" },
   { to: "/closer", label: "闭合" },
+  { to: "/map", label: "映射" },
   { to: "/models", label: "模型" },
   { to: "/rules", label: "规则" },
   { to: "/lab", label: "实验室" },
@@ -23,7 +24,7 @@ export function Shell({ children }: { children: React.ReactNode }) {
               勾稽底稿
             </span>
           </Link>
-          <nav className="flex items-center gap-1">
+          <nav className="flex min-w-0 items-center gap-1 overflow-x-auto">
             {NAV.map((item) => {
               const active =
                 item.to === "/"
@@ -36,7 +37,7 @@ export function Shell({ children }: { children: React.ReactNode }) {
                   key={item.to}
                   to={item.to}
                   className={cn(
-                    "flex h-11 items-center rounded-sm px-2 text-sm transition-colors duration-150 sm:px-3",
+                    "flex h-11 shrink-0 items-center rounded-sm px-2 text-sm transition-colors duration-150 sm:px-3",
                     active ? "bg-forest-2 text-paper" : "text-forest-fg/75 hover:text-paper",
                   )}
                 >

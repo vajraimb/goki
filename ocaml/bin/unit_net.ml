@@ -1,14 +1,14 @@
-(* GOKI Pack-Net — 12 structural ratios → 7-class softmax
-   (generic / bank / exchange / realty / energy / platform / telco). *)
+(* GOKI Unit-Net — log10(raw), assets, NI, vs existing, pack
+   → 4-class softmax (千元 / 万元 / 百万 / 亿). *)
 open Base
 open Ocannl
 open Stdio
 open Nn_blocks.DSL_modules
 
-let n_features = 12
-let hid = 24
-let n_class = 7
-let init_seed = 29
+let n_features = 13
+let hid = 12
+let n_class = 3
+let init_seed = 67
 
 let () =
   Utils.settings.fixed_state_for_init <- Some init_seed;
@@ -16,4 +16,4 @@ let () =
   let%op h x = relu (({ w1 } * x) + { b1; o = [ hid ] }) in
   let%op logits x = ({ w2 } * h x) + { b2; o = [ n_class ] } in
   ignore logits;
-  printf "goki_pack_net ready  features=%d  classes=%d\n" n_features n_class
+  printf "goki_unit_net ready  features=%d  classes=%d\n" n_features n_class

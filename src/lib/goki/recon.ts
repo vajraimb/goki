@@ -78,6 +78,8 @@ export function reconIp(issuer: Issuer) {
   return {
     beg: p.ip,
     add: n.ipAdd,
+    transfer: n.ipTransfer,
+    disp: n.ipDisp,
     fv: n.ipFv,
     end: n.ip,
     expected,
@@ -87,7 +89,9 @@ export function reconIp(issuer: Issuer) {
     hint:
       Math.abs(gap) / Math.max(Math.abs(n.ip), 1) < 0.01
         ? "投资物业滚存已闭合。"
-        : "缺口是未映射的开发转入、收购或处置。公允已按年报填入。",
+        : Math.abs(gap) / Math.max(Math.abs(n.ip), 1) < 0.02
+          ? "剩余多半是汇兑。年报有数，简化式没单列。"
+          : "缺口是未映射的开发转入、收购或处置。公允已按年报填入。",
   };
 }
 
@@ -100,6 +104,7 @@ export function reconAro(issuer: Issuer) {
     beg: p.prov,
     unwind: n.abandonUnwind,
     charge: n.provCharge,
+    use: n.provUse,
     end: n.prov,
     expected,
     gap,
@@ -131,5 +136,60 @@ export function reconMargin(issuer: Issuer) {
       Math.abs(cashGap) < 1
         ? "四段现金加总已对上报表现金。"
         : "现金构成还没加全。",
+  };
+}
+
+export function reconCl(issuer: Issuer) {
+  const n = mergeNotes(issuer.currNotes);
+  const p = mergeNotes(issuer.priorNotes);
+  const expected = p.cl + n.clAdd - n.clRelease;
+  const gap = n.cl - expected;
+  return {
+    beg: p.cl,
+    add: n.clAdd,
+    release: n.clRelease,
+    end: n.cl,
+    expected,
+    gap,
+    days: issuer.curr.revenue > 0 ? (n.cl / issuer.curr.revenue) * 365 : 0,
+    sbp: n.sbp,
+    sbpRatio: issuer.curr.opex > 0 ? n.sbp / issuer.curr.opex : 0,
+    hint:
+      n.clAdd === 0 && Math.abs(gap) > 1
+        ? "本年预收年报未单列。有期末和结转收入就能看出缺口，不是账错。"
+        : Math.abs(gap) / Math.max(Math.abs(n.cl), 1) < 0.01
+          ? "合同负债滚存已闭合。"
+          : "预收和结转还对不上。",
+  };
+}
+
+export function reconNetwork(issuer: Issuer) {
+  const n = mergeNotes(issuer.currNotes);
+  const p = mergeNotes(issuer.priorNotes);
+  const stock = issuer.curr.ppe + n.cip;
+  const priorStock = issuer.prior.ppe + p.cip;
+  const daNet = issuer.curr.da - n.intanAmort;
+  const expected = priorStock + issuer.curr.capex - daNet;
+  const gap = stock - expected;
+  const intanExpected = p.intan + n.intanAdd - n.intanAmort;
+  const intanGap = n.intan - intanExpected;
+  return {
+    ppe: issuer.curr.ppe,
+    cip: n.cip,
+    stock,
+    priorStock,
+    capex: issuer.curr.capex,
+    da: issuer.curr.da,
+    intanAmort: n.intanAmort,
+    expected,
+    gap,
+    intan: n.intan,
+    intanGap,
+    ca: n.contractAsset,
+    caRatio: issuer.curr.revenue > 0 ? n.contractAsset / issuer.curr.revenue : 0,
+    hint:
+      Math.abs(gap) / Math.max(stock, 1) < 0.01
+        ? "网络资产已闭合。"
+        : "开口来自无形摊销拆分、在建结转时点或并购。",
   };
 }

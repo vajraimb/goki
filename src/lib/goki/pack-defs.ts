@@ -390,11 +390,27 @@ function plugEnergy(issuer: Issuer, notes: NoteBooks): NoteBooks {
   return n;
 }
 
+function plugPlatform(issuer: Issuer, notes: NoteBooks): NoteBooks {
+  const n = plugCommon(issuer, notes);
+  const beg = issuer.priorNotes?.cl ?? 0;
+  n.clAdd += n.cl - (beg + n.clAdd - n.clRelease);
+  return n;
+}
+
 /* ── platform ── */
 
 export const PLATFORM_NOTE_RULES: RuleDef[] = [
   EQ,
-  NOTE_RULES[1]!,
+  {
+    id: "t3",
+    code: "T03",
+    name: "合同负债滚存",
+    nameEn: "Contract liability rollforward",
+    kind: "identity",
+    strict: true,
+    formula: "期末 − (期初 + 本年预收 − 本年结转收入) = 0",
+    explain: "HKFRS 15。腾讯 2025 期末 945 亿、期初 876 亿，年初余额结转收入 851 亿。本年预收年报常不单列，空着这条就会开口。",
+  },
   CASH,
   DEBT,
   NOTE_RULES[5]!,
@@ -410,21 +426,20 @@ export const PLATFORM_NOTE_RULES: RuleDef[] = [
     explain: "平台账上大量定期/理财不进「现金及现金等价物」。美团 2025 短期理财约 600 亿。",
   },
   {
-    id: "t2",
-    code: "T02",
-    name: "回购占盈利",
-    nameEn: "Buyback / NI",
+    id: "t4",
+    code: "T04",
+    name: "股份支付占开支",
+    nameEn: "SBC / opex",
     kind: "analytic",
     strict: false,
-    formula: "股份回购 ÷ |净利润|",
-    explain: "分析性。腾讯 2025 回购 734 亿对净利润 2,298 亿。异常高才上升。",
+    formula: "权益结算股份支付 ÷ 期间费用",
+    explain: "分析性。腾讯 2025 计入权益的雇员服务 256 亿 / 期间费用 1,779 亿 ≈ 14%。进股本溢价和其他储备，不进未分配利润。",
   },
 ];
 
 export const PLATFORM_NOTE_FIELDS: NoteField[] = [
   { key: "oci", label: "OCI", group: "n0" },
   { key: "buyback", label: "回购", group: "n0" },
-  { key: "sbp", label: "股份支付", group: "n0" },
   { key: "nci", label: "少数股东", group: "n0" },
   { key: "otherEq", label: "其他权益", group: "n0" },
   { key: "ppeAdd", label: "购置", group: "n1" },
@@ -442,6 +457,10 @@ export const PLATFORM_NOTE_FIELDS: NoteField[] = [
   { key: "rouDep", label: "使用权折旧", group: "n6" },
   { key: "rouTerm", label: "终止", group: "n6" },
   { key: "stInvest", label: "定期/理财", group: "t1" },
+  { key: "cl", label: "合同负债期末", group: "t3" },
+  { key: "clAdd", label: "本年预收", group: "t3" },
+  { key: "clRelease", label: "结转收入", group: "t3" },
+  { key: "sbp", label: "股份支付（权益结算）", group: "t4" },
 ];
 
 export function evaluatePlatformNotes(
@@ -453,18 +472,18 @@ export function evaluatePlatformNotes(
   const n = currNotes;
   const p = priorNotes;
   const floor = floorOf(curr);
-  const r0 = equityGap(prior, curr, n);
-  const r1 = ppeGap(prior, curr, n);
+  const r0 = curr.re - prior.re - (curr.ni - curr.dividends + n.oci - n.buyback + n.nci + n.otherEq);
+  const r1 = n.cl - (p.cl + n.clAdd - n.clRelease);
   const r2 = cashGap(prior, curr, n);
   const r3 = debtGap(prior, curr, n);
   const r4 = n.intan - (p.intan + n.intanAdd - n.intanAmort - n.intanImpair);
   const r5 = n.rou - (p.rou + n.rouAdd - n.rouDep - n.rouTerm);
   const liq = curr.cash + n.stInvest;
   const r6 = n.stInvest / nz(liq);
-  const r7 = n.buyback / nz(Math.abs(curr.ni));
+  const r7 = n.sbp / nz(curr.opex);
   return resultsOf(PLATFORM_NOTE_RULES, [
     { residual: r0, scale: nz(Math.abs(curr.ni), floor), rel: r0 / nz(Math.abs(curr.ni), floor) },
-    { residual: r1, scale: nz(curr.ppe, floor), rel: r1 / nz(curr.ppe, floor) },
+    { residual: r1, scale: nz(n.cl, floor), rel: r1 / nz(n.cl, floor) },
     { residual: r2, scale: nz(Math.abs(curr.netCf), floor), rel: r2 / nz(Math.abs(curr.netCf), floor) },
     {
       residual: r3,
@@ -588,6 +607,137 @@ function plugExchange(issuer: Issuer, notes: NoteBooks): NoteBooks {
   return n;
 }
 
+/* ── telco ── */
+
+export const TELCO_NOTE_RULES: RuleDef[] = [
+  EQ,
+  {
+    id: "c1",
+    code: "C01",
+    name: "网络资产（固定资产+在建）",
+    nameEn: "PPE + CIP roll",
+    kind: "identity",
+    strict: true,
+    formula: "(PPE+在建) − (期初 + 资本开支 − (折旧摊销 − 无形摊销)) = 0",
+    explain: "中移动 2025 固定资产 7,071 亿、在建 618 亿、开支 1,509 亿。折旧摊销 1,900 亿含无形 161 亿。",
+  },
+  {
+    id: "c2",
+    code: "C02",
+    name: "无形 / 频谱 / 土地",
+    nameEn: "Intangibles + spectrum + land",
+    kind: "identity",
+    strict: true,
+    formula: "期末 − (期初 + 购置 − 摊销) = 0",
+    explain: "土地使用权+软件+频谱等。中移动 2025 账面 597 亿。并购并入不进「本年增加」就会开口。",
+  },
+  {
+    id: "c3",
+    code: "C03",
+    name: "使用权资产",
+    nameEn: "ROU / towers",
+    kind: "identity",
+    strict: true,
+    formula: "期末 − (期初 + 增加 − 折旧 − 终止) = 0",
+    explain: "铁塔租赁。中移动 2025 期末 777 亿。增加/折旧未单列则开口。",
+  },
+  CASH,
+  {
+    id: "c4",
+    code: "C04",
+    name: "合同负债滚存",
+    nameEn: "Contract liability rollforward",
+    kind: "identity",
+    strict: true,
+    formula: "期末 − (期初 + 本年预收 − 结转收入) = 0",
+    explain: "预存款、积分、未用流量。中移动 2025 期末 496 亿、期初 550 亿。预收和结转常不单列。",
+  },
+  {
+    id: "c5",
+    code: "C05",
+    name: "合同资产 / 收入",
+    nameEn: "Contract assets / revenue",
+    kind: "analytic",
+    strict: false,
+    formula: "合同资产 ÷ 营业收入",
+    explain: "IFRS 15 未开票。中移动 2025 流动 202 亿 / 收入 10,502 亿 ≈ 1.9%。",
+  },
+  {
+    id: "c6",
+    code: "C06",
+    name: "银行存款占流动性",
+    nameEn: "Bank deposits / liquidity",
+    kind: "analytic",
+    strict: false,
+    formula: "流动定期 ÷ (现金 + 流动定期)",
+    explain: "现金等价物之外的银行定期。中移动 2025 流动 738 亿、现金 973 亿。",
+  },
+];
+
+export const TELCO_NOTE_FIELDS: NoteField[] = [
+  { key: "oci", label: "OCI", group: "n0" },
+  { key: "nci", label: "少数股东", group: "n0" },
+  { key: "otherEq", label: "其他权益", group: "n0" },
+  { key: "ppeAdd", label: "资本开支", group: "c1" },
+  { key: "cip", label: "在建工程", group: "c1" },
+  { key: "intan", label: "无形期末", group: "c2" },
+  { key: "intanAdd", label: "无形购置", group: "c2" },
+  { key: "intanAmort", label: "摊销", group: "c2" },
+  { key: "rou", label: "使用权期末", group: "c3" },
+  { key: "rouAdd", label: "租赁增加", group: "c3" },
+  { key: "rouDep", label: "使用权折旧", group: "c3" },
+  { key: "fxCash", label: "现金汇兑", group: "n2" },
+  { key: "cl", label: "合同负债期末", group: "c4" },
+  { key: "clAdd", label: "本年预收", group: "c4" },
+  { key: "clRelease", label: "结转收入", group: "c4" },
+  { key: "contractAsset", label: "合同资产", group: "c5" },
+  { key: "stInvest", label: "流动银行定期", group: "c6" },
+];
+
+export function evaluateTelcoNotes(
+  prior: YearBooks,
+  curr: YearBooks,
+  priorNotes: NoteBooks,
+  currNotes: NoteBooks,
+): RuleResult[] {
+  const n = currNotes;
+  const p = priorNotes;
+  const floor = floorOf(curr);
+  const r0 = curr.re - prior.re - (curr.ni - curr.dividends + n.oci - n.buyback + n.nci + n.otherEq);
+  const stock = curr.ppe + n.cip;
+  const priorStock = prior.ppe + p.cip;
+  const daNet = curr.da - n.intanAmort;
+  const r1 = stock - (priorStock + curr.capex - daNet);
+  const r2 = n.intan - (p.intan + n.intanAdd - n.intanAmort);
+  const r3 = n.rou - (p.rou + n.rouAdd - n.rouDep - n.rouTerm);
+  const r4 = cashGap(prior, curr, n);
+  const r5 = n.cl - (p.cl + n.clAdd - n.clRelease);
+  const r6 = n.contractAsset / nz(curr.revenue);
+  const liq = curr.cash + n.stInvest;
+  const r7 = n.stInvest / nz(liq);
+  return resultsOf(TELCO_NOTE_RULES, [
+    { residual: r0, scale: nz(Math.abs(curr.ni), floor), rel: r0 / nz(Math.abs(curr.ni), floor) },
+    { residual: r1, scale: nz(stock, floor), rel: r1 / nz(stock, floor) },
+    { residual: r2, scale: nz(n.intan, floor), rel: r2 / nz(n.intan, floor) },
+    { residual: r3, scale: nz(n.rou, floor), rel: r3 / nz(n.rou, floor) },
+    { residual: r4, scale: nz(Math.abs(curr.netCf), floor), rel: r4 / nz(Math.abs(curr.netCf), floor) },
+    { residual: r5, scale: nz(n.cl, floor), rel: r5 / nz(n.cl, floor) },
+    { residual: r6, scale: 1, rel: r6 },
+    { residual: r7, scale: 1, rel: r7 },
+  ]);
+}
+
+function plugTelco(issuer: Issuer, notes: NoteBooks): NoteBooks {
+  const n = plugCommon(issuer, notes);
+  const p = issuer.priorNotes;
+  const priorStock = issuer.prior.ppe + (p?.cip ?? 0);
+  const daNet = issuer.curr.da - n.intanAmort;
+  n.cip = priorStock + issuer.curr.capex - daNet - issuer.curr.ppe;
+  n.clAdd += n.cl - ((p?.cl ?? 0) + n.clAdd - n.clRelease);
+  n.intanAdd += n.intan - ((p?.intan ?? 0) + n.intanAdd - n.intanAmort);
+  return n;
+}
+
 /* ── registry ── */
 
 export const PACK_SPECS: Record<RulePack, PackSpec> = {
@@ -662,6 +812,18 @@ export const PACK_SPECS: Record<RulePack, PackSpec> = {
     noteFields: PLATFORM_NOTE_FIELDS,
     featureNames: namesOf(PLATFORM_NOTE_RULES),
     evaluate: evaluatePlatformNotes,
-    plug: plugTruncation,
+    plug: plugPlatform,
+  },
+  telco: {
+    id: "telco",
+    skipMain: {
+      r6: "网络资产走在建结转，折旧含无形摊销。改测 C01。",
+      r4: "毛利把其他业务收入近似为成本，终端销售不是网络成本结构。",
+    },
+    noteRules: TELCO_NOTE_RULES,
+    noteFields: TELCO_NOTE_FIELDS,
+    featureNames: namesOf(TELCO_NOTE_RULES),
+    evaluate: evaluateTelcoNotes,
+    plug: plugTelco,
   },
 };

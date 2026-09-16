@@ -1,14 +1,12 @@
-(* GOKI Completeness-Net — 26 features (6 pack one-hot + 12 empty flags +
-   8 note-identity rels) → 24 ReLU → 12 independent sigmoids.
-   Label = which required note slots were dropped. Empty + closed ≠ missing. *)
+(* GOKI Completeness-Net — pack one-hot + empty flags + note rels. *)
 open Base
 open Ocannl
 open Stdio
 open Nn_blocks.DSL_modules
 
-let n_features = 26
+let n_features = 33
 let hid = 24
-let n_slot = 12
+let n_slot = 18
 let init_seed = 47
 
 let () =

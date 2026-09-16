@@ -31,17 +31,24 @@ export const COMPLETE_SLOTS: CompleteSlot[] = [
   { id: "ip", label: "投资物业存量", packs: ["realty"], keys: ["ip"], related: ["P01"], kind: "identity" },
   { id: "ip_roll", label: "投资物业滚存", packs: ["realty"], keys: ["ipAdd", "ipTransfer"], related: ["P01"], kind: "identity" },
   { id: "dev", label: "开发成本", packs: ["realty"], keys: ["devCost"], related: ["P02"], kind: "identity" },
-  { id: "ppe_add", label: "PPE 购置", packs: ["energy", "generic", "platform"], keys: ["ppeAdd"], related: ["E01", "N02"], kind: "identity" },
+  { id: "ppe_add", label: "PPE 购置", packs: ["energy", "generic", "platform", "telco"], keys: ["ppeAdd"], related: ["E01", "N02", "C01"], kind: "identity" },
   { id: "aro", label: "弃置准备", packs: ["energy"], keys: ["prov"], related: ["E02"], kind: "identity" },
   { id: "aro_charge", label: "弃置新井/修订", packs: ["energy"], keys: ["provCharge"], related: ["E02"], kind: "identity" },
   { id: "margin", label: "现金四段", packs: ["exchange"], keys: ["ownCash", "marginCash"], related: ["X01"], kind: "identity" },
-  { id: "st_invest", label: "定期/理财", packs: ["platform"], keys: ["stInvest"], related: ["T01"], kind: "expected" },
+  { id: "st_invest", label: "定期/理财", packs: ["platform", "telco"], keys: ["stInvest"], related: ["T01", "C06"], kind: "expected" },
+  { id: "cl", label: "合同负债", packs: ["platform", "telco"], keys: ["cl"], related: ["T03", "C04"], kind: "identity" },
+  { id: "cl_add", label: "本年预收", packs: ["platform", "telco"], keys: ["clAdd"], related: ["T03", "C04"], kind: "identity" },
+  { id: "sbp", label: "股份支付", packs: ["platform"], keys: ["sbp"], related: ["T04"], kind: "expected" },
+  { id: "cip", label: "在建工程", packs: ["telco"], keys: ["cip"], related: ["C01"], kind: "identity" },
+  { id: "ca", label: "合同资产", packs: ["telco"], keys: ["contractAsset"], related: ["C05"], kind: "expected" },
+  { id: "intan_roll", label: "无形购置/摊销", packs: ["telco"], keys: ["intanAdd", "intanAmort"], related: ["C02"], kind: "identity" },
   { id: "equity", label: "回购/OCI/少数股东", packs: [...RULE_PACKS], keys: ["buyback", "oci", "nci", "otherEq"], related: ["N01"], kind: "identity" },
 ];
 
 const K = COMPLETE_SLOTS.length;
 const HID = 24;
-const IN = 6 + K + 8;
+export const COMPLETE_IN = RULE_PACKS.length + K + 8;
+const IN = COMPLETE_IN;
 
 export const COMPLETE_FEAT_NAMES = [
   ...RULE_PACKS.map((p) => `pack_${p}`),
@@ -223,6 +230,7 @@ function bandSlot(slot: CompleteSlot, p: number, empty: boolean, rel: number): C
 export function scoreComplete(issuer: Issuer): CompletenessScore {
   const mdl = getCompleteNet();
   const pack = packOf(issuer);
+  const defs = noteRulesFor(pack);
   const notes = mergeNotes(issuer.currNotes);
   const x = completeFeatures(issuer);
   const { p } = sigmoidKForward(mdl.net, x);
@@ -235,13 +243,14 @@ export function scoreComplete(issuer: Issuer): CompletenessScore {
     const rel = relatedRel(issuer, slot);
     const pk = p[k]!;
     const band = bandSlot(slot, pk, empty, rel);
+    const relatedCode = slot.related.find((c) => defs.some((d) => d.code === c)) ?? slot.related[0] ?? "";
     hits.push({
       id: slot.id,
       label: slot.label,
       p: pk,
       empty,
       rel,
-      related: slot.related[0] ?? "",
+      related: relatedCode,
       band,
     });
   }

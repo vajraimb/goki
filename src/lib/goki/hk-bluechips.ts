@@ -3,6 +3,8 @@ import { maxSoftAbsRel, maxStrictAbsRel, RULES, totalAssets } from "./rules";
 import { EMPTY_NOTES } from "./note-rules";
 import { evaluateMainRules, packOf } from "./packs";
 import { EMPTY_BOOKS } from "./statements";
+import { liveIssuers } from "./map-intake";
+import { bandIssuer } from "./materiality-net";
 import type { Industry, Issuer, NoteBooks, RulePack, ScoredIssuer, YearBooks } from "./types";
 
 /** Millions of reporting currency → 万元. */
@@ -226,6 +228,8 @@ const SPECS: Spec[] = [
       "R02：货币资金用现金及现金等价物（不含定期存款 2,368 亿）。",
       "R03 会断：股份回购 734 亿、OCI、少数股东都不在「净利润−分红」里。",
       "使用权资产附注闭合：期初 176.79 + 增加 69.12 − 折旧 62.19 − 终止 10.05 = 173.67。",
+      "合同负债 945 亿（游戏点券/订阅），年初余额结转收入 851 亿；本年预收年报未单列。",
+      "权益结算股份支付 256 亿进股本溢价/其他储备，不进未分配利润。损益里的 319 亿含现金结算。",
     ],
     curr: {
       revenue: 751766, cogs: 329173, gp: 422593, opex: 177854, ebit: 241562,
@@ -253,25 +257,26 @@ const SPECS: Spec[] = [
     unitLabel: "万元人民币",
     filingNote: "中国移动 2025 年度业绩（人民币百万元）",
     caveats: [
-      "年报未按「营业成本」单列，毛利勾稽把其他业务收入近似为成本，R05 不是严格恒等。",
-      "折旧由 EBITDA−营运利润反推。",
-      "货币资金用现金及现金等价物（年初 1,673.09 亿 + 净减少），定期存款在其他流动资产。",
+      "年报未按「营业成本」单列，毛利勾稽把其他业务收入近似为成本，R05 已关掉。",
+      "网络资产：固定资产期末 7,071 亿、期初 7,145 亿，在建 618 / 743 亿，资本开支 1,509 亿。折旧摊销 1,900 亿含无形摊销 161 亿。",
+      "无形（土地+软件+频谱等）期末 597 亿；并购并入不进「本年增加」就会开口。",
+      "合同负债 496 亿（预存款/积分/流量），期初 550 亿。合同资产流动 202 亿。预收和结转未单列。",
+      "流动银行定期 738 亿不进现金等价物。除税前 1,756 亿、税 383 亿；净利润用股东应占 1,371 亿，差额是少数股东。",
     ],
     curr: {
       revenue: 1050187, cogs: 154657, opex: 556599, da: 189999, ebit: 148932,
-      pretax: 185000, tax: 47905, ni: 137095,
-      dividends: 80000,
-      cash: 97682, ar: 45000, inv: 8000, ppe: 720000, currentAssets: 497646, totalAssets: 2128182,
-      ap: 180000, stDebt: 20000, ltDebt: 40000, totalLiab: 695331, totalEquity: 1432851,
-      cfo: 232919, cfi: -190403, cff: -112143, netCf: -69627, capex: 150878, taxPaid: 40000,
+      interest: 3657, pretax: 175608, tax: 38344, ni: 137095,
+      dividends: 102821,
+      cash: 97267, ar: 99762, inv: 16613, ppe: 707116, currentAssets: 497646, totalAssets: 2128182,
+      ap: 334099, stDebt: 42507, taxPay: 12632, ltDebt: 81771, totalLiab: 695331, totalEquity: 1432851,
+      cfo: 232919, cfi: -190403, cff: -112143, netCf: -69627, capex: 150878,
     },
     prior: {
       revenue: 1040759, cogs: 151291, opex: 555777, da: 191101, ebit: 142590,
-      pretax: 186000, tax: 47627, ni: 138373,
-      dividends: 78000,
-      cash: 167309, ar: 43000, inv: 7500, ppe: 700000, currentAssets: 568559, totalAssets: 2108127,
-      ap: 175000, stDebt: 22000, ltDebt: 38000, totalLiab: 711588, totalEquity: 1396539,
-      cfo: 315741, cfi: -185194, cff: -105167, netCf: 25380, capex: 164021, taxPaid: 42000,
+      interest: 3273, pretax: 178389, tax: 39863, ni: 138373,
+      cash: 167309, ar: 75741, inv: 11229, ppe: 714494, currentAssets: 568559, totalAssets: 2108127,
+      ap: 354341, stDebt: 32512, taxPay: 17041, ltDebt: 78570, totalLiab: 711588, totalEquity: 1396539,
+      cfo: 315741, cfi: -185194, cff: -105167, netCf: 25380, capex: 164021,
     },
   },
   {
@@ -284,7 +289,7 @@ const SPECS: Spec[] = [
     filingNote: "中国海洋石油 2025 年报（人民币百万元）",
     caveats: [
       "营业成本用原油及油品采购；作业费、勘探、特别收益金进期间费用。",
-      "能源包：PPE 加资本开支 1,188 亿、减值 38 亿；弃置准备 1,160 亿，折现释放 38 亿，新井 ARO 未单列。",
+      "能源包：PPE 加资本开支 1,188 亿、减值 38 亿。弃置准备非流动 1,160 亿；本年新增 93 亿、储量修订 35 亿、折现释放 38 亿、使用 6 亿。",
       "分红按派息率约 45% 估算，R03 仍会因储备与少数股东断裂。",
     ],
     curr: {
@@ -343,8 +348,8 @@ const SPECS: Spec[] = [
     unitLabel: "万港元",
     filingNote: "新鸿基地产截至 2025-06-30 年报（港元）。地产年结不是日历年。",
     caveats: [
-      "投资物业 4,170.45 亿，公允变动 −27.3 亿。P01 未填购置/转入时残差就是未映射的开发转入。",
-      "待售物业放入存货。P02 未填开发成本时残差是在建投入，不是造假。",
+      "投资物业 4,170.45 亿。年报滚存：购置 82.3 亿、待售转入 28.4 亿、处置 23.4 亿、公允 −27.3 亿。汇兑 25.6 亿不进简化式。",
+      "待售物业放入存货。开发成本年报未单列，P02 开口是未映射的在建投入，不是造假。",
       "R07 关掉：投资物业不按成本滚折旧。",
     ],
     curr: {
@@ -432,6 +437,8 @@ const SPECS: Spec[] = [
     caveats: [
       "2025 由盈转亏，经营现金流转负，R06 简化间接法会严重断裂——这是商业模式不是账错。",
       "短期理财约 600.6 亿不在货币资金里，进 T01 流动性结构。",
+      "合同负债期末 57 亿、年初 63 亿，结转收入 49 亿；本年预收未单列。",
+      "权益结算股份支付 60 亿。",
     ],
     curr: {
       revenue: 364855, cogs: 253846, gp: 111009, opex: 128000, da: 12000, ebit: -17000,
@@ -514,6 +521,9 @@ const DISCLOSED: Record<
       buyback: 73400,
       oci: 45550,
       nci: 6565,
+      sbp: 25623,
+      cl: 94469,
+      clRelease: 85080,
       ppeAdd: 79198,
       intan: 205999,
       rou: 17367,
@@ -525,6 +535,7 @@ const DISCLOSED: Record<
     priorNotes: {
       intan: 196127,
       rou: 17679,
+      cl: 87552,
     },
   },
   "01810": {
@@ -540,11 +551,30 @@ const DISCLOSED: Record<
   },
   "03690": {
     curr: { cfi: 29773, cff: 21243, netCf: 37201, capex: 13271 },
-    notes: { buyback: 365, ppeAdd: 13271, borrowDraw: 42232, borrowRepay: 16064, stInvest: 60060 },
+    notes: { buyback: 365, ppeAdd: 13271, borrowDraw: 42232, borrowRepay: 16064, stInvest: 60060, sbp: 6016, cl: 5725, clRelease: 4884 },
+    priorNotes: { cl: 6323 },
   },
   "00941": {
-    curr: { dividends: 102821 },
-    notes: { ppeAdd: 150878 },
+    notes: {
+      ppeAdd: 150878,
+      cip: 61845,
+      rou: 77662,
+      intan: 59748,
+      intanAdd: 18679,
+      intanAmort: 16132,
+      cl: 49615,
+      stInvest: 73827,
+      contractAsset: 20178,
+      oci: -1587,
+    },
+    priorNotes: {
+      cip: 74271,
+      rou: 80625,
+      intan: 50804,
+      cl: 54964,
+      contractAsset: 20665,
+      stInvest: 74966,
+    },
   },
   "00883": {
     notes: {
@@ -554,6 +584,8 @@ const DISCLOSED: Record<
       rouDep: 2635,
       intan: 16522,
       prov: 116039,
+      provCharge: 12846,
+      provUse: 573,
       abandonUnwind: 3846,
     },
     priorNotes: {
@@ -570,7 +602,11 @@ const DISCLOSED: Record<
     notes: {
       ip: 417045,
       ipFv: -2730,
+      ipAdd: 8228,
+      ipTransfer: 2836,
+      ipDisp: 2335,
       ppeAdd: 4000,
+      oci: 1810,
     },
     priorNotes: { ip: 408424 },
   },
@@ -596,12 +632,6 @@ function notesOf(raw?: Partial<NoteBooks>): NoteBooks {
     if (v != null && Number.isFinite(v)) n[k] = m(v);
   });
   return n;
-}
-
-function bandHk(maxHard: number, maxSoft: number): ScoredIssuer["band"] {
-  if (maxHard >= 0.01) return "exception";
-  if (maxSoft >= 0.01) return "review";
-  return "pass";
 }
 
 export function buildHkIssuers(): Issuer[] {
@@ -664,8 +694,10 @@ export function buildHkIssuers(): Issuer[] {
               : pack === "exchange"
                 ? "交易所包：现金拆成公司资金/保证金/结算所/沪深股通。保证金资产负债允许投资时点差。"
                 : pack === "platform"
-                  ? "平台包：存货周转关掉。看回购、使用权、定期存款占流动性。"
-                  : "附注行只填年报已披露的数字。未披露的在建、处置、准备保持 0，完整式残差就是未映射缺口。",
+                  ? "平台包：存货周转关掉。看合同负债、股份支付、定期存款。"
+                  : pack === "telco"
+                    ? "电信包：网络资产+在建、无形/频谱、合同资产/负债、银行定期。"
+                    : "附注行只填年报已披露的数字。未披露的在建、处置、准备保持 0，完整式残差就是未映射缺口。",
       ],
     };
   });
@@ -697,13 +729,15 @@ export function scoreHk(issuer: Issuer): ScoredIssuer {
     cashPred,
     cashResidual,
     attribution,
-    band: bandHk(maxHard, maxSoft),
+    band: bandIssuer(issuer, rules),
     maxRel: maxSoft,
   };
 }
 
 export function getHkScored(): ScoredIssuer[] {
-  return buildHkIssuers().map(scoreHk).sort((a, b) => (b.maxRel ?? 0) - (a.maxRel ?? 0));
+  return liveIssuers(buildHkIssuers())
+    .map(scoreHk)
+    .sort((a, b) => (b.maxRel ?? 0) - (a.maxRel ?? 0));
 }
 
 export function findHk(id: string): ScoredIssuer | undefined {

@@ -4,6 +4,7 @@ import { Shell } from "@/components/shell";
 import { Badge } from "@/components/ui/badge";
 import { scoreHkCloser } from "@/lib/goki/closer-engine";
 import { compactP, pct } from "@/lib/goki/format";
+import { useMapIntake } from "@/lib/goki/map-intake";
 import { packOf, sectorLabel } from "@/lib/goki/packs";
 import type { CloserScore } from "@/lib/goki/types";
 import { cn } from "@/lib/cn";
@@ -23,10 +24,11 @@ function bandLabel(band: CloserScore["band"]) {
 }
 
 function CloserPage() {
+  const writes = useMapIntake((s) => s.writes);
   const [rows, setRows] = useState<CloserScore[] | null>(null);
   useEffect(() => {
     setRows(scoreHkCloser());
-  }, []);
+  }, [writes]);
 
   if (!rows) {
     return (

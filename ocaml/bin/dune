@@ -29,6 +29,11 @@
  (libraries goki base ocannl stdio))
 
 (executable
+ (name telco_closer)
+ (public_name goki-telco-closer)
+ (libraries goki base ocannl stdio))
+
+(executable
  (name exchange_closer)
  (public_name goki-exchange-closer)
  (libraries goki base ocannl stdio))
@@ -52,3 +57,39 @@
  (name complete_net)
  (public_name goki-complete-net)
  (libraries goki base ocannl stdio))
+
+(executable
+ (name map_net)
+ (public_name goki-map-net)
+ (libraries goki base ocannl stdio))
+
+(executable
+ (name materiality)
+ (public_name goki-materiality)
+ (libraries goki base ocannl stdio))
+
+(executable
+ (name unit_net)
+ (public_name goki-unit-net)
+ (libraries goki base ocannl stdio))
+
+(executable
+ (name estimate_dda)
+ (public_name goki-estimate-dda)
+ (libraries goki base ocannl stdio))
+
+(executable
+ (name estimate_buyback)
+ (public_name goki-estimate-buyback)
+ (libraries goki base ocannl stdio))
+
+(executable
+ (name estimate_sbc)
+ (public_name goki-estimate-sbc)
+ (libraries goki base ocannl stdio))
+
+(executable
+ (name estimate_cl)
+ (public_name goki-estimate-cl)
+ (libraries goki base ocannl stdio))
+

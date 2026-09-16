@@ -5,6 +5,7 @@ import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/cn";
 import { checksumShort, compactP, pct } from "@/lib/goki/format";
 import { buildHkIssuers } from "@/lib/goki/hk-bluechips";
+import { liveIssuers, useMapIntake } from "@/lib/goki/map-intake";
 import { ensureAllModels, estimatesFor, type ModelCard } from "@/lib/goki/models";
 import { packOf, PACK_LABEL } from "@/lib/goki/packs";
 import type { CompletenessScore, EstimateScore, PackGuess } from "@/lib/goki/types";
@@ -12,6 +13,7 @@ import type { CompletenessScore, EstimateScore, PackGuess } from "@/lib/goki/typ
 export const Route = createFileRoute("/models")({ component: ModelsPage });
 
 function ModelsPage() {
+  const writes = useMapIntake((s) => s.writes);
   const [cards, setCards] = useState<ModelCard[] | null>(null);
   const [rows, setRows] = useState<
     {
@@ -22,6 +24,8 @@ function ModelsPage() {
       guess: PackGuess;
       ecl: EstimateScore | null;
       fv: EstimateScore | null;
+      dda: EstimateScore | null;
+      buyback: EstimateScore | null;
       complete: CompletenessScore;
     }[] | null
   >(null);
@@ -29,7 +33,7 @@ function ModelsPage() {
   useEffect(() => {
     const cat = ensureAllModels();
     setCards(cat.cards);
-    const issuers = buildHkIssuers();
+    const issuers = liveIssuers(buildHkIssuers());
     setRows(
       issuers.map((iss) => {
         const e = estimatesFor(iss);
@@ -41,18 +45,20 @@ function ModelsPage() {
           guess: e.pack,
           ecl: e.ecl,
           fv: e.fv,
+          dda: e.dda,
+          buyback: e.buyback,
           complete: e.complete,
         };
       }),
     );
-  }, []);
+  }, [writes]);
 
   if (!cards || !rows) {
     return (
       <Shell>
         <p className="font-mono text-xs tracking-[0.18em] text-muted uppercase">Small models</p>
         <h1 className="mt-1 font-display text-4xl tracking-tight">小模型工作链</h1>
-        <p className="mt-3 text-sm text-ink-soft">正在编译 Pack-Net、六行业闭合头、Completeness-Net、ECL 与公允估计头…</p>
+        <p className="mt-3 text-sm text-ink-soft">正在编译 Map-Net、Pack-Net、七行业闭合头、Completeness-Net、ECL 与公允估计头…</p>
       </Shell>
     );
   }
@@ -68,17 +74,27 @@ function ModelsPage() {
           </p>
           <h1 className="mt-1 font-display text-4xl tracking-tight sm:text-5xl">小模型工作链</h1>
           <p className="mt-3 max-w-2xl text-sm leading-relaxed text-ink-soft">
-            年报审核拆成五个环节。每个小网络独立训练，合成语料固定种子，港股实报只做推断。模型不读 PDF。
+            年报审核拆成六个环节。每个小网络独立训练，合成语料固定种子，港股实报只做推断。模型不读年报
+            PDF。下面是工作链图，也可
+            <a href="/goki-work-chain.pdf" className="mx-1 text-forest underline underline-offset-2">
+              打开 PDF
+            </a>
+            或去
+            <Link to="/map" className="ml-1 text-forest underline underline-offset-2">
+              科目映射
+            </Link>
+            。
           </p>
         </div>
 
-        <ol className="grid gap-2 sm:grid-cols-2 lg:grid-cols-5">
+        <ol className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
           {[
-            ["1 取包", "Pack-Net 看结构比率，决定银行/地产/能源/平台/交易所/通用。"],
-            ["2 主表", "十条勾稽。行业包关掉不适用的恒等。"],
-            ["3 附注", "对应行业的闭合头，16 维残差 → 开口概率。"],
-            ["4 完备", "Completeness-Net 看漏填。空且恒等仍闭合的不当漏填。"],
-            ["5 估计", "银行质疑 ECL 覆盖率，地产质疑投资物业公允。"],
+            ["1 取数", "Map-Net 映射行名。整表贴入，单位网把千元/亿换成百万再写入。"],
+            ["2 取包", "Pack-Net 看结构比率，决定银行/地产/能源/平台/电信/交易所/通用。"],
+            ["3 主表", "十条勾稽。行业包关掉不适用的恒等。"],
+            ["4 附注", "对应行业的闭合头。电信勾网络资产、频谱、合同负债。"],
+            ["5 完备", "Completeness-Net 看漏填。空且恒等仍闭合的不当漏填。"],
+            ["6 估计", "银行 ECL、地产公允、能源/电信折耗、平台回购/股份支付/递延。"],
           ].map(([t, b]) => (
             <li key={t} className="rounded-lg bg-paper-2 px-4 py-3 shadow-[var(--shadow-border)]">
               <p className="font-display text-lg">{t}</p>
@@ -86,6 +102,35 @@ function ModelsPage() {
             </li>
           ))}
         </ol>
+
+        <section>
+          <div className="flex flex-wrap items-baseline justify-between gap-2">
+            <h2 className="font-display text-2xl">工作链图</h2>
+            <a
+              href="/goki-work-chain.pdf"
+              className="font-mono text-xs text-forest underline underline-offset-2"
+            >
+              下载五页 PDF
+            </a>
+          </div>
+          <p className="mt-1 text-xs text-ink-soft">横版五页。手机上看字偏小，可打开 PDF。</p>
+          <ol className="mt-3 grid gap-3">
+            {[
+              ["p1.png", "总图 · 取数到估计"],
+              ["p2.png", "取数 Map-Net · 取包 Pack-Net"],
+              ["p3.png", "主表十条 · 行业跳过"],
+              ["p4.png", "行业闭合头"],
+              ["p5.png", "完备、估计、数字怎么进来"],
+            ].map(([file, cap], i) => (
+              <li key={file} className="overflow-hidden rounded-lg bg-paper-2 shadow-[var(--shadow-border)]">
+                <img src={`/work-chain/${file}`} alt={cap} className="block h-auto w-full" />
+                <p className="px-3 py-2 font-mono text-xs text-muted">
+                  {i + 1} / 5　{cap}
+                </p>
+              </li>
+            ))}
+          </ol>
+        </section>
 
         <section>
           <h2 className="font-display text-2xl">模型卡</h2>
@@ -123,7 +168,7 @@ function ModelsPage() {
           </div>
           <div className="mt-3 overflow-hidden rounded-lg bg-paper-2 shadow-[var(--shadow-border)]">
             <div className="overflow-x-auto">
-              <table className="w-full min-w-[48rem] border-collapse text-sm">
+              <table className="w-full min-w-[56rem] border-collapse text-sm">
                 <thead>
                   <tr className="border-b border-rule text-left text-xs text-muted">
                     <th className="px-3 py-2 font-medium">发行人</th>
@@ -132,6 +177,8 @@ function ModelsPage() {
                     <th className="px-3 py-2 font-medium">完备</th>
                     <th className="px-3 py-2 text-right font-medium">ECL p</th>
                     <th className="px-3 py-2 text-right font-medium">公允 p</th>
+                    <th className="px-3 py-2 text-right font-medium">折耗 p</th>
+                    <th className="px-3 py-2 text-right font-medium">回购 p</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -166,6 +213,12 @@ function ModelsPage() {
                       </td>
                       <td className="px-3 py-2.5 text-right font-mono tabular-nums">
                         {r.fv ? compactP(r.fv.pOutlier) : "—"}
+                      </td>
+                      <td className="px-3 py-2.5 text-right font-mono tabular-nums">
+                        {r.dda ? compactP(r.dda.pOutlier) : "—"}
+                      </td>
+                      <td className="px-3 py-2.5 text-right font-mono tabular-nums">
+                        {r.buyback ? compactP(r.buyback.pOutlier) : "—"}
                       </td>
                     </tr>
                   ))}

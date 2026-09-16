@@ -8,11 +8,13 @@ import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/cn";
 import { compactP, pct, wan, aeFmt } from "@/lib/goki/format";
 import { findHk } from "@/lib/goki/hk-bluechips";
+import { useMapIntake } from "@/lib/goki/map-intake";
 import { linesFor } from "@/lib/goki/lines";
 import { estimatesFor } from "@/lib/goki/models";
+import { mapLinesFor, targetLabel, readTargetValue, isEmptyValue, sinkOf } from "@/lib/goki/map-net";
 import { DISPOSITION_LABEL, useNotes, type Disposition } from "@/lib/goki/notes";
 import { packOf, PACK_LABEL, sectorLabel } from "@/lib/goki/packs";
-import { reconAro, reconEcl, reconIp, reconMargin, reconR03, reconR07 } from "@/lib/goki/recon";
+import { reconAro, reconCl, reconEcl, reconIp, reconMargin, reconNetwork, reconR03, reconR07 } from "@/lib/goki/recon";
 import { RULES, totalAssets, totalLE } from "@/lib/goki/rules";
 import { SIZE_LABEL, type CompletenessScore, type Issuer, type RulePack } from "@/lib/goki/types";
 
@@ -20,6 +22,7 @@ export const Route = createFileRoute("/issuer/$id")({ component: IssuerPage });
 
 function IssuerPage() {
   const { id } = Route.useParams();
+  useMapIntake((s) => s.writes);
   const [tab, setTab] = useState<"bs" | "is" | "cf">("bs");
   const rec = useNotes((s) => s.byId[id]);
   const setStatus = useNotes((s) => s.setStatus);
@@ -207,8 +210,9 @@ function IssuerPage() {
             </section>
 
             <PackRecon issuer={issuer} pack={pack} />
-            <EstimatePanel issuer={issuer} pack={pack} />
+            <EstimatePanel issuer={issuer} />
             <CompletePanel issuer={issuer} />
+            <MapPanel issuer={issuer} />
             <NoteCloser issuer={issuer} />
 
             <section className="rounded-lg bg-paper-2 p-4 shadow-[var(--shadow-border)]">
@@ -361,7 +365,8 @@ function packBlurb(pack: RulePack): string {
     return "简化 PPE 滚存已关掉。改测折耗减值后的油气/电厂资产、弃置准备、燃料条款。";
   if (pack === "exchange")
     return "毛利、存货、PPE、简化 CFO 已关掉。现金拆成公司资金 / 保证金 / 结算所 / 沪深股通。";
-  if (pack === "platform") return "存货周转已关掉。看回购、使用权资产、定期存款占流动性。";
+  if (pack === "platform") return "存货周转已关掉。看合同负债、股份支付、定期存款。";
+  if (pack === "telco") return "网络资产走在建。看无形/频谱、合同资产和预存款。";
   return "";
 }
 
@@ -370,32 +375,46 @@ function PackRecon({ issuer, pack }: { issuer: Issuer; pack: RulePack }) {
   if (pack === "realty") return <RealtyRecon issuer={issuer} />;
   if (pack === "energy") return <EnergyRecon issuer={issuer} />;
   if (pack === "exchange") return <ExchangeRecon issuer={issuer} />;
+  if (pack === "platform") return <PlatformRecon issuer={issuer} />;
+  if (pack === "telco") return <TelcoRecon issuer={issuer} />;
   return <ReconCards issuer={issuer} />;
 }
 
-function EstimatePanel({ issuer, pack }: { issuer: Issuer; pack: RulePack }) {
-  if (pack !== "bank" && pack !== "realty") return null;
-  const { ecl, fv, pack: guess } = estimatesFor(issuer);
-  const score = pack === "bank" ? ecl : fv;
-  if (!score) return null;
+function EstimatePanel({ issuer }: { issuer: Issuer }) {
+  const { ecl, fv, dda, buyback, sbc, deferred, pack: guess } = estimatesFor(issuer);
+  const items: { title: string; hint: string; score: NonNullable<typeof ecl> }[] = [];
+  if (ecl) items.push({ title: "Estimate-Net ECL", hint: "覆盖率对照同业约 1.2%。", score: ecl });
+  if (fv) items.push({ title: "Estimate-Net 公允", hint: "公允变动对照投资物业存量。", score: fv });
+  if (dda) items.push({ title: "Estimate-Net 折耗", hint: packOf(issuer) === "telco" ? "本年折旧摊销÷PPE 对照上年。中移动约 27%（含无形摊销）是电信常态。" : "本年折旧÷PPE 对照上年。油气高、电厂低，跳升才质疑。", score: dda });
+  if (buyback) items.push({ title: "Estimate-Net 回购", hint: "回购占盈利。接近或超过当年盈利才复核。", score: buyback });
+  if (sbc) items.push({ title: "Estimate-Net 股份支付", hint: "权益结算股份支付占期间费用。", score: sbc });
+  if (deferred) items.push({ title: "Estimate-Net 递延", hint: packOf(issuer) === "telco" ? "合同负债÷收入。预存款/积分通常个位数百分比。" : "合同负债÷收入。游戏点券高、到家低。", score: deferred });
+  if (items.length === 0) return null;
   return (
     <section className="rounded-lg bg-paper-2 p-4 shadow-[var(--shadow-border)]">
-      <h2 className="font-display text-xl">{pack === "bank" ? "Estimate-Net ECL" : "Estimate-Net 公允"}</h2>
+      <h2 className="font-display text-xl">估计</h2>
       <p className="mt-1 text-xs leading-relaxed text-ink-soft">
         Pack-Net 判为 {PACK_LABEL[guess.pack]}
         {guess.match ? "（与指定包一致）" : `（指定 ${PACK_LABEL[guess.assigned]}）`}。
-        {pack === "bank" ? " 覆盖率对照同业约 1.2%。" : " 公允变动对照存量。"}
       </p>
-      <p className="mt-3 font-mono text-sm tabular-nums">
-        实际 {pct(score.actual, 2)} · 参照 {pct(score.predicted, 2)} · p(异常) {compactP(score.pOutlier)}
-      </p>
-      <p className="mt-1 text-xs text-ink-soft">
-        {score.band === "pass"
-          ? "未超出同业邻域。"
-          : score.band === "review"
-            ? "偏离值得对照附注。"
-            : "偏离过大，要质疑模型/估值假设。"}
-      </p>
+      <ul className="mt-3 divide-y divide-rule">
+        {items.map((it) => (
+          <li key={it.title} className="py-3 first:pt-0 last:pb-0">
+            <p className="font-display text-lg">{it.title}</p>
+            <p className="mt-0.5 text-xs text-ink-soft">{it.hint}</p>
+            <p className="mt-2 font-mono text-sm tabular-nums">
+              实际 {pct(it.score.actual, 2)} · 参照 {pct(it.score.predicted, 2)} · p(异常) {compactP(it.score.pOutlier)}
+            </p>
+            <p className="mt-1 text-xs text-ink-soft">
+              {it.score.band === "pass"
+                ? "未超出同业邻域。"
+                : it.score.band === "review"
+                  ? "偏离值得对照附注。"
+                  : "偏离过大，要质疑模型/估值假设。"}
+            </p>
+          </li>
+        ))}
+      </ul>
     </section>
   );
 }
@@ -445,6 +464,80 @@ function CompletenessCard({ score }: { score: CompletenessScore }) {
   );
 }
 
+function MapPanel({ issuer }: { issuer: Issuer }) {
+  const put = useMapIntake((s) => s.put);
+  const allWrites = useMapIntake((s) => s.writes);
+  const writes = allWrites.filter((w) => w.ticker === issuer.ticker);
+  const lines = mapLinesFor(issuer.ticker);
+  const nHit = lines.filter((l) => l.guess.match).length;
+  const [amt, setAmt] = useState<Record<string, string>>({});
+  const [msg, setMsg] = useState("");
+  if (lines.length === 0) return null;
+  return (
+    <section className="rounded-lg bg-paper-2 p-4 shadow-[var(--shadow-border)]">
+      <div className="flex flex-wrap items-baseline justify-between gap-2">
+        <h2 className="font-display text-xl">行项目映射</h2>
+        <Badge tone={nHit === lines.length ? "pass" : "review"}>
+          {nHit}/{lines.length}
+        </Badge>
+      </div>
+      <p className="mt-1 text-xs leading-relaxed text-ink-soft">
+        映射结果写入附注空槽，勾稽当场重算。主表已有数不覆盖。金额是报表货币百万。
+      </p>
+      <ul className="mt-3 divide-y divide-rule">
+        {lines.map((l) => {
+          const val = readTargetValue(issuer, l.guess.target);
+          const empty = isEmptyValue(val);
+          const sink = sinkOf(l.guess.target);
+          return (
+            <li key={l.label} className="py-2 first:pt-0 last:pb-0">
+              <p className="text-sm leading-snug">{l.label}</p>
+              <p className={cn("mt-0.5 font-mono text-xs", l.guess.match ? "text-pass" : "text-review")}>
+                {l.guess.match ? targetLabel(l.target) : `判成 ${targetLabel(l.guess.target)} · 指定 ${targetLabel(l.target)}`}
+                <span className="ml-2 text-muted">{pct(l.guess.p, 0)}</span>
+              </p>
+              {sink.book === "none" ? (
+                <p className="mt-0.5 font-mono text-xs text-muted">不进规范科目</p>
+              ) : empty ? (
+                <div className="mt-2 flex flex-wrap gap-2">
+                  <input
+                    value={amt[l.guess.target] ?? ""}
+                    onChange={(e) => setAmt((s) => ({ ...s, [l.guess.target]: e.target.value }))}
+                    inputMode="decimal"
+                    placeholder="百万"
+                    className="h-11 w-28 min-w-0 rounded-md bg-paper px-3 text-sm shadow-[var(--shadow-border)]"
+                  />
+                  <Button
+                    type="button"
+                    size="sm"
+                    onClick={() => {
+                      const million = Number((amt[l.guess.target] ?? "").replace(/,/g, ""));
+                      if (!Number.isFinite(million) || million === 0) {
+                        setMsg("填百万金额。");
+                        return;
+                      }
+                      put({ ticker: issuer.ticker, label: l.label, target: l.guess.target, million });
+                      setMsg(`已写入 ${targetLabel(l.guess.target)}`);
+                    }}
+                  >
+                    写入
+                  </Button>
+                </div>
+              ) : (
+                <p className="mt-0.5 font-mono text-xs text-muted">已在科目 {wan(val)}</p>
+              )}
+            </li>
+          );
+        })}
+      </ul>
+      {writes.length > 0 ? (
+        <p className="mt-2 font-mono text-xs text-pass">本页已写入 {writes.length} 项</p>
+      ) : null}
+      {msg ? <p className="mt-1 text-sm text-pass">{msg}</p> : null}
+    </section>
+  );
+}
+
 function RealtyRecon({ issuer }: { issuer: Issuer }) {
   const r3 = reconR03(issuer);
   const ip = reconIp(issuer);
@@ -462,11 +555,76 @@ function RealtyRecon({ issuer }: { issuer: Issuer }) {
         <div className="rounded-md bg-paper px-3 py-3 shadow-[var(--shadow-border)]">
           <p className="font-mono text-xs text-muted">P01 投资物业</p>
           <p className="mt-1 font-mono text-sm tabular-nums">
-            期末 {wan(ip.end, 1)} − (期初 {wan(ip.beg, 1)} + 公允 {wan(ip.fv, 1)}) ={" "}
-            <span className="text-review">{wan(ip.gap, 1)}</span>
+            期末 {wan(ip.end, 1)} − (期初 {wan(ip.beg, 1)} + 购置 {wan(ip.add, 1)} + 转入 {wan(ip.transfer, 1)} + 公允{" "}
+            {wan(ip.fv, 1)} − 处置 {wan(ip.disp, 1)}) ={" "}
+            <span className={Math.abs(ip.gap) / Math.max(Math.abs(ip.end), 1) < 0.01 ? "text-pass" : "text-review"}>
+              {wan(ip.gap, 1)}
+            </span>
           </p>
           <p className="mt-1 font-mono text-xs text-muted">公允 / 存量 {pct(ip.fvRatio, 2)}</p>
           <p className="mt-1 text-xs leading-relaxed text-ink-soft">{ip.hint}</p>
+        </div>
+      </div>
+    </section>
+  );
+}
+
+function PlatformRecon({ issuer }: { issuer: Issuer }) {
+  const c = reconCl(issuer);
+  return (
+    <section className="rounded-lg bg-paper-2 p-4 shadow-[var(--shadow-border)]">
+      <h2 className="font-display text-xl">平台缺口拆开</h2>
+      <div className="mt-3 grid gap-3">
+        <div className="rounded-md bg-paper px-3 py-3 shadow-[var(--shadow-border)]">
+          <p className="font-mono text-xs text-muted">T03 合同负债</p>
+          <p className="mt-1 font-mono text-sm tabular-nums">
+            期末 {wan(c.end, 1)} − (期初 {wan(c.beg, 1)} + 预收 {wan(c.add, 1)} − 结转 {wan(c.release, 1)}) ={" "}
+            <span className={Math.abs(c.gap) < 1 ? "text-pass" : "text-review"}>{wan(c.gap, 1)}</span>
+          </p>
+          <p className="mt-1 text-xs leading-relaxed text-ink-soft">{c.hint}</p>
+        </div>
+        <div className="rounded-md bg-paper px-3 py-3 shadow-[var(--shadow-border)]">
+          <p className="font-mono text-xs text-muted">T04 股份支付</p>
+          <p className="mt-1 font-mono text-sm tabular-nums">
+            权益结算 {wan(c.sbp, 1)} · 占开支 {pct(c.sbpRatio, 1)}
+          </p>
+          <p className="mt-1 text-xs leading-relaxed text-ink-soft">进股本溢价和其他储备，不进未分配利润。</p>
+        </div>
+      </div>
+    </section>
+  );
+}
+
+function TelcoRecon({ issuer }: { issuer: Issuer }) {
+  const n = reconNetwork(issuer);
+  const c = reconCl(issuer);
+  return (
+    <section className="rounded-lg bg-paper-2 p-4 shadow-[var(--shadow-border)]">
+      <h2 className="font-display text-xl">电信缺口拆开</h2>
+      <div className="mt-3 grid gap-3">
+        <div className="rounded-md bg-paper px-3 py-3 shadow-[var(--shadow-border)]">
+          <p className="font-mono text-xs text-muted">C01 网络资产</p>
+          <p className="mt-1 font-mono text-sm tabular-nums">
+            PPE {wan(n.ppe, 1)} + 在建 {wan(n.cip, 1)} − 滚存 {wan(n.expected, 1)} ={" "}
+            <span className={Math.abs(n.gap) / Math.max(n.stock, 1) < 0.01 ? "text-pass" : "text-review"}>
+              {wan(n.gap, 1)}
+            </span>
+          </p>
+          <p className="mt-1 text-xs leading-relaxed text-ink-soft">{n.hint}</p>
+        </div>
+        <div className="rounded-md bg-paper px-3 py-3 shadow-[var(--shadow-border)]">
+          <p className="font-mono text-xs text-muted">C02 无形 / 频谱</p>
+          <p className="mt-1 font-mono text-sm tabular-nums">
+            期末 {wan(n.intan, 1)} 缺口 {wan(n.intanGap, 1)}
+          </p>
+          <p className="mt-1 text-xs leading-relaxed text-ink-soft">并购并入不进本年购置就会开口。</p>
+        </div>
+        <div className="rounded-md bg-paper px-3 py-3 shadow-[var(--shadow-border)]">
+          <p className="font-mono text-xs text-muted">C04 合同负债 · C05 合同资产</p>
+          <p className="mt-1 font-mono text-sm tabular-nums">
+            负债缺口 {wan(c.gap, 1)} · 资产/收入 {pct(n.caRatio, 1)}
+          </p>
+          <p className="mt-1 text-xs leading-relaxed text-ink-soft">{c.hint}</p>
         </div>
       </div>
     </section>
@@ -490,8 +648,11 @@ function EnergyRecon({ issuer }: { issuer: Issuer }) {
         <div className="rounded-md bg-paper px-3 py-3 shadow-[var(--shadow-border)]">
           <p className="font-mono text-xs text-muted">E02 弃置准备</p>
           <p className="mt-1 font-mono text-sm tabular-nums">
-            期末 {wan(a.end, 1)} − (期初 {wan(a.beg, 1)} + 折现 {wan(a.unwind, 1)}) ={" "}
-            <span className="text-review">{wan(a.gap, 1)}</span>
+            期末 {wan(a.end, 1)} − (期初 {wan(a.beg, 1)} + 新井/修订 {wan(a.charge, 1)} + 折现 {wan(a.unwind, 1)} − 使用{" "}
+            {wan(a.use, 1)}) ={" "}
+            <span className={Math.abs(a.gap) / Math.max(Math.abs(a.end), 1) < 0.01 ? "text-pass" : "text-review"}>
+              {wan(a.gap, 1)}
+            </span>
           </p>
           <p className="mt-1 text-xs leading-relaxed text-ink-soft">{a.hint}</p>
         </div>

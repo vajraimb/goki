@@ -165,9 +165,56 @@ function closeEnergyNotes(issuer: Issuer, rng: () => number): { prior: NoteBooks
 function closePlatformNotes(issuer: Issuer, rng: () => number): { prior: NoteBooks; curr: NoteBooks } {
   const base = closeNotes(issuer, rng);
   const stInvest = issuer.curr.cash * (0.8 + rng() * 1.4);
+  const clBeg = Math.abs(issuer.curr.revenue) * (0.08 + rng() * 0.08);
+  const clRelease = clBeg * (0.85 + rng() * 0.12);
+  const clAdd = clRelease + clBeg * rng() * 0.12;
+  const cl = clBeg + clAdd - clRelease;
+  const sbp = Math.abs(issuer.curr.opex) * (0.08 + rng() * 0.08);
   return {
-    prior: base.prior,
-    curr: { ...base.curr, stInvest, buyback: Math.max(base.curr.buyback, Math.abs(issuer.curr.ni) * 0.15) },
+    prior: { ...base.prior, cl: clBeg },
+    curr: {
+      ...base.curr,
+      stInvest,
+      buyback: Math.max(base.curr.buyback, Math.abs(issuer.curr.ni) * 0.15),
+      cl,
+      clAdd,
+      clRelease,
+      sbp,
+    },
+  };
+}
+
+function closeTelcoNotes(issuer: Issuer, rng: () => number): { prior: NoteBooks; curr: NoteBooks } {
+  const base = closeNotes(issuer, rng);
+  const cipBeg = issuer.curr.ppe * (0.06 + rng() * 0.04);
+  const intanBeg = issuer.curr.ppe * (0.06 + rng() * 0.04);
+  const intanAmort = intanBeg * (0.22 + rng() * 0.08);
+  const intanAdd = intanBeg * (0.18 + rng() * 0.12);
+  const intan = intanBeg + intanAdd - intanAmort;
+  const daNet = issuer.curr.da - intanAmort;
+  const priorStock = issuer.prior.ppe + cipBeg;
+  const cip = priorStock + issuer.curr.capex - daNet - issuer.curr.ppe;
+  const clBeg = issuer.curr.revenue * (0.045 + rng() * 0.02);
+  const clRelease = clBeg * (0.7 + rng() * 0.2);
+  const clAdd = clRelease + clBeg * (rng() - 0.4) * 0.1;
+  const cl = clBeg + clAdd - clRelease;
+  const contractAsset = issuer.curr.revenue * (0.015 + rng() * 0.01);
+  const stInvest = issuer.curr.cash * (0.6 + rng() * 0.5);
+  return {
+    prior: { ...base.prior, cip: cipBeg, intan: intanBeg, cl: clBeg, rou: base.prior.rou },
+    curr: {
+      ...base.curr,
+      cip,
+      intan,
+      intanAdd,
+      intanAmort,
+      cl,
+      clAdd,
+      clRelease,
+      contractAsset,
+      stInvest,
+      ppeAdd: issuer.curr.capex,
+    },
   };
 }
 
@@ -294,6 +341,18 @@ function injectPackBreak(rng: () => number, issuer: Issuer, pack: RulePack): Err
     issuer.currNotes = notes;
     return "note_margin";
   }
+  if (pack === "platform") {
+    notes.cl += mag;
+    notes.clAdd = 0;
+    issuer.currNotes = notes;
+    return "note_cl";
+  }
+  if (pack === "telco") {
+    notes.cip += mag;
+    notes.intanAmort = 0;
+    issuer.currNotes = notes;
+    return "note_cip";
+  }
   return injectNoteBreak(rng, issuer);
 }
 
@@ -327,6 +386,7 @@ function closerOf(pack: RulePack, issuer: Issuer, rng: () => number) {
   if (pack === "energy") return closeEnergyNotes(issuer, rng);
   if (pack === "platform") return closePlatformNotes(issuer, rng);
   if (pack === "exchange") return closeExchangeNotes(issuer, rng);
+  if (pack === "telco") return closeTelcoNotes(issuer, rng);
   return closeNotes(issuer, rng);
 }
 
@@ -342,6 +402,7 @@ export const PACK_CLOSER_SEED: Record<RulePack, number> = {
   realty: 13,
   energy: 17,
   platform: 19,
+  telco: 31,
 };
 
 export function generateCloserIssuers(seed = CLOSER_SEED, n = N_CLOSER): Issuer[] {
@@ -366,7 +427,9 @@ export function generatePackCloserIssuers(
           ? "energy"
           : pack === "platform"
             ? "tech"
-            : undefined;
+            : pack === "telco"
+              ? "tech"
+              : undefined;
   const base = generateIssuers(seed, n, industry);
   const rng = mulberry32(seed + 99);
   return base.map((iss, i) => {
@@ -396,7 +459,9 @@ export function generateClosedPackIssuers(pack: RulePack, seed: number, n = 80):
           ? "energy"
           : pack === "platform"
             ? "tech"
-            : undefined;
+            : pack === "telco"
+              ? "tech"
+              : undefined;
   const base = generateIssuers(seed, n, industry);
   const rng = mulberry32(seed + 77);
   return base.map((iss, i) => {

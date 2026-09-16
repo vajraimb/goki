@@ -40,7 +40,7 @@ export function packFeatures(issuer: Issuer): number[] {
   const y = issuer.curr;
   const a = Math.max(totalAssets(y), 1);
   const n = mergeNotes(issuer.currNotes);
-  const hint = n.loansGross + n.ip + n.marginFunds + n.stInvest + n.prov;
+  const hint = n.loansGross + n.ip + n.marginFunds + n.stInvest + n.prov + n.cip + n.contractAsset + n.cl;
   const gpRatio = y.cogs === 0 && Math.abs(y.gp - y.revenue) < 1 ? 0 : y.gp / nz(y.revenue);
   return [
     y.ar / a,
@@ -67,11 +67,17 @@ function morph(issuer: Issuer, pack: RulePack, rng: () => number): Issuer {
     y.inv = 0;
     y.gp = 0;
     y.cogs = 0;
-    y.ar = a * (0.28 + rng() * 0.08);
-    y.otherL = a * (0.55 + rng() * 0.1);
-    notes.loansGross = y.ar * 1.02;
-    notes.ecl = y.ar * 0.015;
-    notes.deposits = y.otherL * 0.85;
+    y.ar = a * (0.28 + rng() * 0.18);
+    y.ppe = a * (0.003 + rng() * 0.016);
+    y.cash = a * (0.04 + rng() * 0.08);
+    y.da = y.ppe * (0.04 + rng() * 0.38);
+    y.otherL = a * (0.74 + rng() * 0.14);
+    y.otherNca = a * (0.32 + rng() * 0.16);
+    y.stDebt = a * (0.015 + rng() * 0.04);
+    y.ltDebt = a * (0.04 + rng() * 0.05);
+    notes.loansGross = y.ar * (1.005 + rng() * 0.03);
+    notes.ecl = y.ar * (0.008 + rng() * 0.02);
+    notes.deposits = y.otherL * (0.72 + rng() * 0.18);
   } else if (pack === "realty") {
     y.inv = a * (0.22 + rng() * 0.06);
     y.ppe = a * (0.06 + rng() * 0.03);
@@ -80,16 +86,29 @@ function morph(issuer: Issuer, pack: RulePack, rng: () => number): Issuer {
     notes.ip = y.otherNca * 0.85;
     notes.ipFv = y.ni * (rng() * 0.3 - 0.15);
   } else if (pack === "energy") {
-    y.ppe = a * (0.55 + rng() * 0.12);
-    y.inv = a * 0.02;
-    y.da = y.ppe * (0.08 + rng() * 0.05);
-    notes.prov = y.ppe * 0.15;
+    y.ppe = a * (0.55 + rng() * 0.16);
+    y.inv = a * (0.008 + rng() * 0.02);
+    y.da = y.ppe * (0.05 + rng() * 0.09);
+    y.cash = a * (0.02 + rng() * 0.16);
+    y.ar = a * (0.02 + rng() * 0.04);
+    y.cogs = y.revenue * (0.1 + rng() * 0.25);
+    y.gp = y.revenue - y.cogs;
+    y.otherNca = a * (0.1 + rng() * 0.14);
+    y.otherL = a * (0.12 + rng() * 0.14);
+    notes.prov = y.ppe * (0.08 + rng() * 0.12);
   } else if (pack === "platform") {
-    y.inv = a * 0.004;
-    y.ppe = a * (0.04 + rng() * 0.04);
-    y.otherNca = a * (0.4 + rng() * 0.15);
-    notes.stInvest = y.cash * (0.8 + rng());
-    notes.buyback = Math.abs(y.ni) * (0.2 + rng() * 0.3);
+    y.inv = a * (0.0005 + rng() * 0.012);
+    y.ppe = a * (0.04 + rng() * 0.09);
+    y.da = rng() < 0.35 ? 0 : y.ppe * (0.05 + rng() * 0.32);
+    y.cash = a * (0.05 + rng() * 0.3);
+    y.cogs = y.revenue * (0.35 + rng() * 0.4);
+    y.gp = y.revenue - y.cogs;
+    y.otherNca = a * (0.18 + rng() * 0.5);
+    y.otherL = a * (0.16 + rng() * 0.14);
+    notes.stInvest = y.cash * (0.5 + rng() * 1.2);
+    notes.buyback = Math.max(0, Math.abs(y.ni) * (0.05 + rng() * 0.4));
+    notes.cl = Math.abs(y.revenue) * (0.015 + rng() * 0.14);
+    notes.sbp = Math.abs(y.opex) * (0.04 + rng() * 0.12);
   } else if (pack === "exchange") {
     y.cash = a * (0.28 + rng() * 0.1);
     y.inv = 0;
@@ -99,6 +118,32 @@ function morph(issuer: Issuer, pack: RulePack, rng: () => number): Issuer {
     y.cogs = 0;
     notes.marginFunds = y.otherL * 0.5;
     notes.ownCash = y.cash * 0.12;
+  } else if (pack === "telco") {
+    y.ppe = a * (0.3 + rng() * 0.08);
+    y.da = y.ppe * (0.22 + rng() * 0.08);
+    y.inv = a * (0.005 + rng() * 0.006);
+    y.ar = a * (0.03 + rng() * 0.02);
+    y.stDebt = a * 0.01;
+    y.ltDebt = a * 0.02;
+    y.cash = a * (0.03 + rng() * 0.04);
+    y.cogs = y.revenue * (0.12 + rng() * 0.08);
+    y.gp = y.revenue - y.cogs;
+    y.otherNca = a * (0.28 + rng() * 0.1);
+    y.otherL = a * (0.08 + rng() * 0.06);
+    notes.cip = y.ppe * (0.06 + rng() * 0.04);
+    notes.contractAsset = y.revenue * (0.015 + rng() * 0.01);
+    notes.cl = y.revenue * (0.04 + rng() * 0.02);
+    notes.stInvest = y.cash * (0.6 + rng() * 0.4);
+    notes.intan = y.ppe * (0.06 + rng() * 0.04);
+  } else if (rng() < 0.35) {
+    y.inv = a * (0.12 + rng() * 0.08);
+    y.ppe = a * (0.04 + rng() * 0.08);
+    y.ar = a * (0.02 + rng() * 0.06);
+    y.cash = a * (0.04 + rng() * 0.08);
+    y.cogs = y.revenue * (0.68 + rng() * 0.14);
+    y.gp = y.revenue - y.cogs;
+    y.otherNca = a * (0.32 + rng() * 0.16);
+    y.otherL = a * (0.1 + rng() * 0.1);
   } else {
     y.inv = a * (0.12 + rng() * 0.08);
     y.ppe = a * (0.18 + rng() * 0.1);

@@ -6,6 +6,7 @@ import {
 import { N_NOTE_FEATURES } from "./note-rules";
 import { packNoteFeatures, packOf } from "./packs";
 import { buildHkIssuers } from "./hk-bluechips";
+import { liveIssuers } from "./map-intake";
 import {
   aeErr,
   aeSgdStep,
@@ -322,7 +323,7 @@ export function scoreCloserLive(issuer: Issuer, overlay?: Partial<NoteBooks>): C
 }
 
 export function scoreHkCloser(): CloserScore[] {
-  const issuers = buildHkIssuers();
+  const issuers = liveIssuers(buildHkIssuers());
   const needed = new Set(issuers.map((i) => packOf(i)));
   for (const p of needed) ensureCloser(p);
   return issuers

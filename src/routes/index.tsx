@@ -2,6 +2,7 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { Shell } from "@/components/shell";
 import { Badge } from "@/components/ui/badge";
 import { getHkScored } from "@/lib/goki/hk-bluechips";
+import { useMapIntake } from "@/lib/goki/map-intake";
 import { pct } from "@/lib/goki/format";
 import { scoreComplete } from "@/lib/goki/complete-net";
 import { packOf, PACK_LABEL, sectorLabel } from "@/lib/goki/packs";
@@ -24,6 +25,7 @@ function bandLabel(band: ScoredIssuer["band"]) {
 }
 
 function Home() {
+  useMapIntake((s) => s.writes);
   const rows = getHkScored();
   const nEx = rows.filter((r) => r.band === "exception").length;
   const nRev = rows.filter((r) => r.band === "review").length;
@@ -39,7 +41,7 @@ function Home() {
           </p>
           <h1 className="mt-1 font-display text-4xl tracking-tight sm:text-5xl">年报勾稽队列</h1>
           <p className="mt-3 max-w-2xl text-sm leading-relaxed text-ink-soft">
-            十一条恒生蓝筹。按行业走规则包：银行、地产、能源、平台、交易所、通用。硬恒等必须为零。漏填走 Completeness-Net，估计项另走 ECL / 公允。
+            十一条恒生蓝筹。按行业走规则包：银行、地产、能源、平台、电信、交易所、通用。硬恒等必须为零。漏填走 Completeness-Net，估计项另走 ECL / 公允。
           </p>
         </div>
 

@@ -86,11 +86,11 @@ let init_seed = 11
   },
   {
     path: "bin/pack_net.ml",
-    title: "Pack-Net · 12→24→6 softmax",
+    title: "Pack-Net · 12→24→7 softmax",
     body: `(* Structural ratios → rule pack. Not a closer. *)
 let n_features = 12
 let hid = 24
-let n_class = 6
+let n_class = 7
 let init_seed = 29
 let%op h x = relu (({ w1 } * x) + { b1; o = [ hid ] })
 let%op logits x = ({ w2 } * h x) + { b2; o = [ n_class ] }
@@ -98,16 +98,74 @@ let%op logits x = ({ w2 } * h x) + { b2; o = [ n_class ] }
   },
   {
     path: "bin/complete_net.ml",
-    title: "Completeness-Net · 26→24→12 sigmoid",
-    body: `(* Pack one-hot + empty flags + note-identity rels → missing slots.
-   Independent sigmoid, not softmax: several fields can be missing at once.
-   Empty + closed identity is NOT missing. *)
-let n_features = 26
+    title: "Completeness-Net · 33→24→18 sigmoid",
+    body: `(* Pack one-hot + empty flags + note-identity rels → missing slots. *)
+let n_features = 33
 let hid = 24
-let n_slot = 12
+let n_slot = 18
 let init_seed = 47
 let%op h x = relu (({ w1 } * x) + { b1; o = [ hid ] })
 let%op logits x = ({ w2 } * h x) + { b2; o = [ n_slot ] }
+`,
+  },
+  {
+    path: "bin/map_net.ml",
+    title: "Map-Net · lexicon → 35 softmax",
+    body: `(* Keyword hits + pack one-hot + section → canonical slot.
+   No embedding table, no gather. HKFRS bilingual aliases in training;
+   real FY2025 line names are holdout. *)
+let n_features = 133
+let hid = 40
+let n_class = 35
+let init_seed = 53
+let%op h x = relu (({ w1 } * x) + { b1; o = [ hid ] })
+let%op logits x = ({ w2 } * h x) + { b2; o = [ n_class ] }
+`,
+  },
+  {
+    path: "bin/materiality.ml",
+    title: "Materiality-Net · 13→16→3 softmax",
+    body: `(* |rel|, resid/NI, resid/assets, hard (R01/R04), analytic, pack
+   → pass / review / exception. Main + note identities, worst wins. *)
+let n_features = 14
+let hid = 16
+let n_class = 3
+let init_seed = 61
+let%op h x = relu (({ w1 } * x) + { b1; o = [ hid ] })
+let%op logits x = ({ w2 } * h x) + { b2; o = [ n_class ] }
+`,
+  },
+  {
+    path: "bin/unit_net.ml",
+    title: "Unit-Net · 12→12→3 softmax",
+    body: `(* log10(raw) vs assets/NI/existing → 千元 / 百万 / 亿.
+   Explicit 万元/亿 suffix wins. Convert to filing millions before write. *)
+let n_features = 13
+let hid = 12
+let n_class = 3
+let init_seed = 67
+let%op h x = relu (({ w1 } * x) + { b1; o = [ hid ] })
+let%op logits x = ({ w2 } * h x) + { b2; o = [ n_class ] }
+`,
+  },
+  {
+    path: "bin/estimate_dda.ml",
+    title: "Estimate-Net 折耗 · 8→16→8→1",
+    body: `(* da/PPE vs prior. Oil ~12% and power ~6% are both in-distribution. *)
+let n_in = 8
+let hid1 = 16
+let hid2 = 8
+let init_seed = 47
+`,
+  },
+  {
+    path: "bin/estimate_buyback.ml",
+    title: "Estimate-Net 回购 · 8→16→8→1",
+    body: `(* buyback / |NI|. Tencent ~32% is routine. Near or above NI is not. *)
+let n_in = 8
+let hid1 = 16
+let hid2 = 8
+let init_seed = 49
 `,
   },
   {
@@ -128,6 +186,19 @@ let init_seed = 13
    E05 fuel clause / revenue analytic. *)
 let n_features = 16
 let init_seed = 17
+`,
+  },
+  {
+    path: "bin/telco_closer.ml",
+    title: "Telco-Closer · 网络 / 频谱 / 合同",
+    body: `(* C01 (PPE+CIP) − (beg + capex − (DA − intan amort))
+   C02 intan − (beg + add − amort)   M&A left open
+   C04 CL − (beg + add − release)    billings often undisclosed
+   C05 CA/rev and C06 deposits analytic. *)
+let n_features = 16
+let hid1 = 32
+let hid2 = 16
+let init_seed = 31
 `,
   },
   {

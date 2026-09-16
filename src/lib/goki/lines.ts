@@ -118,5 +118,38 @@ export function linesFor(pack: RulePack | undefined): {
       cf: CF_LINES,
     };
   }
+  if (pack === "telco") {
+    return {
+      is: [
+        { key: "revenue", label: "营运收入" },
+        { key: "cogs", label: "其他业务成本" },
+        { key: "gp", label: "主营业务收入", total: true },
+        { key: "opex", label: "营运支出" },
+        { key: "da", label: "折旧及摊销" },
+        { key: "ebit", label: "营运利润" },
+        { key: "interest", label: "财务费用" },
+        { key: "pretax", label: "除税前利润", total: true },
+        { key: "tax", label: "所得税" },
+        { key: "ni", label: "股东应占利润", total: true },
+        { key: "dividends", label: "股息" },
+      ],
+      bs: [
+        { key: "cash", label: "现金及现金等价物" },
+        { key: "ar", label: "应收账款" },
+        { key: "inv", label: "存货" },
+        { key: "otherCa", label: "其他流动资产" },
+        { key: "ppe", label: "固定资产" },
+        { key: "otherNca", label: "在建/无形及其他" },
+        { key: "ap", label: "应付账款及应计" },
+        { key: "stDebt", label: "租赁负债（流动）" },
+        { key: "taxPay", label: "应付所得税" },
+        { key: "ltDebt", label: "非流动负债" },
+        { key: "otherL", label: "合同负债及其他" },
+        { key: "shareCap", label: "股本" },
+        { key: "re", label: "储备及未分配利润" },
+      ],
+      cf: CF_LINES,
+    };
+  }
   return { is: IS_LINES, bs: BS_LINES, cf: CF_LINES };
 }

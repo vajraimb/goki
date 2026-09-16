@@ -22,7 +22,7 @@ export const INDUSTRY_LABEL: Record<Industry, string> = {
   trans: "交运",
 };
 
-export const RULE_PACKS = ["generic", "bank", "exchange", "realty", "energy", "platform"] as const;
+export const RULE_PACKS = ["generic", "bank", "exchange", "realty", "energy", "platform", "telco"] as const;
 export type RulePack = (typeof RULE_PACKS)[number];
 
 export const PACK_LABEL: Record<RulePack, string> = {
@@ -32,6 +32,7 @@ export const PACK_LABEL: Record<RulePack, string> = {
   realty: "地产",
   energy: "能源",
   platform: "平台",
+  telco: "电信",
 };
 
 export const SIZE_LABEL = {
@@ -62,7 +63,9 @@ export type ErrorKind =
   | "note_loan"
   | "note_ip"
   | "note_margin"
-  | "note_aro";
+  | "note_aro"
+  | "note_cl"
+  | "note_cip";
 
 /** Amounts in 万元. */
 export interface YearBooks {
@@ -172,6 +175,11 @@ export interface NoteBooks {
   clearingLiab: number;
   stInvest: number;
   fuelClause: number;
+  cl: number;
+  clAdd: number;
+  clRelease: number;
+  cip: number;
+  contractAsset: number;
 }
 
 export interface RuleDef {

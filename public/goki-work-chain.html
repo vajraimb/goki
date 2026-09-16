@@ -1,0 +1,428 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <title>GOKI 年报审核工作链</title>
+  <style>
+    @page { size: A4 landscape; margin: 12mm 12mm 14mm 12mm; }
+    * { box-sizing: border-box; }
+    html, body {
+      margin: 0; padding: 0;
+      background: #F3EEE4;
+      color: #1C1915;
+      font-family: "WenQuanYi Zen Hei", "Noto Sans CJK SC", sans-serif;
+      font-size: 9.5pt;
+      line-height: 1.4;
+      -webkit-print-color-adjust: exact;
+      print-color-adjust: exact;
+    }
+    .sheet {
+      page-break-after: always;
+      min-height: 176mm;
+    }
+    .sheet:last-child { page-break-after: auto; }
+    h1, h2, h3 { margin: 0; font-weight: 700; line-height: 1.2; }
+    h1 { font-size: 22pt; letter-spacing: -0.02em; }
+    h2 { font-size: 13pt; color: #2A4A40; margin: 0 0 8px; }
+    .kicker {
+      font-family: "Liberation Mono", "WenQuanYi Zen Hei Mono", monospace;
+      font-size: 8pt; letter-spacing: 0.16em; text-transform: uppercase;
+      color: #7A7368; margin-bottom: 4px;
+    }
+    .muted { color: #7A7368; }
+    .row { display: flex; gap: 8px; align-items: stretch; }
+    .col { display: flex; flex-direction: column; gap: 6px; }
+    .grow { flex: 1; min-width: 0; }
+    .card {
+      background: #EBE6DA;
+      border-radius: 10px;
+      padding: 8px 10px;
+    }
+    .step {
+      background: #2A4A40;
+      color: #E8F0EC;
+      border-radius: 10px;
+      padding: 10px 10px 8px;
+      display: flex;
+      flex-direction: column;
+      min-height: 0;
+    }
+    .step .n {
+      font-family: "Liberation Mono", monospace;
+      font-size: 8pt; letter-spacing: 0.12em; opacity: 0.7;
+    }
+    .step h3 { font-size: 13pt; margin: 2px 0 4px; color: #E8F0EC; }
+    .step p { margin: 0 0 6px; font-size: 8pt; color: #C5D4CC; }
+    .chip {
+      display: inline-block;
+      background: #1E3830;
+      color: #E8F0EC;
+      border-radius: 4px;
+      padding: 2px 6px;
+      font-size: 7.5pt;
+      margin: 0 3px 3px 0;
+    }
+    .chip.soft { background: #3A5C52; }
+    .arrow {
+      width: 18px; flex: 0 0 18px;
+      display: flex; align-items: center; justify-content: center;
+      color: #2A4A40; font-size: 14pt;
+    }
+    .band { display: flex; gap: 8px; margin-top: 8px; }
+    .band .b { flex: 1; border-radius: 8px; padding: 8px 10px; }
+    .b-pass { background: #DCE8E0; color: #2F5C45; }
+    .b-review { background: #F3E9D8; color: #8A5A2A; }
+    .b-ex { background: #F3E4E1; color: #8C3A32; }
+    .b h4 { margin: 0 0 2px; font-size: 10pt; }
+    .b p { margin: 0; font-size: 8pt; }
+    table { width: 100%; border-collapse: collapse; font-size: 8.4pt; }
+    th, td { border-bottom: 1px solid #D8D0C4; padding: 3px 5px; text-align: left; vertical-align: top; }
+    th { color: #7A7368; font-weight: 600; font-size: 7.5pt; }
+    td.code, th.code { font-family: "Liberation Mono", monospace; width: 42px; }
+    .skip { color: #8C3A32; }
+    .on { color: #2F5C45; }
+    .na { color: #C4BBA8; }
+    .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+    .grid3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; }
+    .grid6 { display: grid; grid-template-columns: repeat(6, 1fr); gap: 8px; }
+    .pack-h { background: #2A4A40; color: #E8F0EC; border-radius: 8px 8px 0 0; padding: 6px 8px; font-size: 10pt; }
+    .pack-b { background: #EBE6DA; border-radius: 0 0 8px 8px; padding: 6px 8px 8px; min-height: 118px; }
+    .id { font-family: "Liberation Mono", monospace; font-size: 7.5pt; color: #2A4A40; }
+    ul.tight { margin: 0; padding: 0 0 0 14px; }
+    ul.tight li { margin: 0 0 2px; }
+    .foot-note { font-size: 8pt; color: #7A7368; margin-top: 8px; }
+    .io { font-size: 7.6pt; color: #C5D4CC; }
+    .io b { color: #E8F0EC; font-weight: 600; }
+  </style>
+</head>
+<body>
+
+<!-- 1 总图 -->
+<section class="sheet">
+  <p class="kicker">GOKI · Work chain · WP-2026-0916</p>
+  <h1>年报审核工作链</h1>
+  <p class="muted" style="margin:6px 0 12px;max-width:220mm;">
+    港股年报审核拆成六个环节。小模型各自训练、各自判定；规则包决定测哪几条恒等。模型不读 PDF。数字来自底稿映射表。
+  </p>
+
+  <div class="row" style="align-items:stretch;">
+    <div class="step grow">
+      <span class="n">01 取数</span>
+      <h3>Map-Net</h3>
+      <p>中英行名关键词 + 规则包 + 报表位置 → 24 个规范科目。</p>
+      <div>
+        <span class="chip">现金</span><span class="chip">贷款净额/总额</span><span class="chip">ECL</span>
+        <span class="chip">存款</span><span class="chip">投资物业</span><span class="chip">待售</span>
+        <span class="chip">PPE / 弃置</span><span class="chip">保证金</span><span class="chip">定期</span>
+        <span class="chip">回购 / OCI</span><span class="chip">其他</span>
+      </div>
+      <p class="io" style="margin-top:auto;"><b>入</b> 行项目名　<b>出</b> 规范科目 softmax</p>
+    </div>
+    <div class="arrow">→</div>
+    <div class="step grow">
+      <span class="n">02 取包</span>
+      <h3>Pack-Net</h3>
+      <p>12 个结构比率，不读文字。决定后面测哪一组恒等。</p>
+      <div>
+        <span class="chip">银行</span><span class="chip">地产</span><span class="chip">能源</span>
+        <span class="chip">平台</span><span class="chip">交易所</span><span class="chip">通用</span>
+      </div>
+      <p class="io" style="margin-top:auto;"><b>入</b> 资产结构　<b>出</b> 规则包</p>
+    </div>
+    <div class="arrow">→</div>
+    <div class="step grow">
+      <span class="n">03 主表</span>
+      <h3>十条勾稽</h3>
+      <p>资产负债表、利润桥、现金滚存。行业包关掉不适用的。</p>
+      <div>
+        <span class="chip">R01 资产负债</span><span class="chip">R02 现金</span>
+        <span class="chip">R03 未分配</span><span class="chip">R04 净利润</span>
+        <span class="chip">R05–R10 可跳</span>
+      </div>
+      <p class="io" style="margin-top:auto;"><b>入</b> 两年主表　<b>出</b> 残差 / 相对残差</p>
+    </div>
+    <div class="arrow">→</div>
+    <div class="step grow">
+      <span class="n">04 附注</span>
+      <h3>闭合头 × 6</h3>
+      <p>16 维残差 → 开口概率。每个行业自己的槽位。</p>
+      <div>
+        <span class="chip">N01 权益</span><span class="chip">B01 ECL</span>
+        <span class="chip">P01 投资物业</span><span class="chip">E02 弃置</span>
+        <span class="chip">X01 现金四段</span><span class="chip">T01 理财</span>
+      </div>
+      <p class="io" style="margin-top:auto;"><b>入</b> 附注残差　<b>出</b> 开口 p</p>
+    </div>
+    <div class="arrow">→</div>
+    <div class="step grow">
+      <span class="n">05 完备</span>
+      <h3>Completeness</h3>
+      <p>空着、且恒等还开口，才叫漏填。空且已闭合不当漏。</p>
+      <div>
+        <span class="chip">ECL / 贷款</span><span class="chip">投资物业滚存</span>
+        <span class="chip">开发成本</span><span class="chip">弃置新井</span>
+        <span class="chip">保证金</span><span class="chip">OCI / 回购</span>
+      </div>
+      <p class="io" style="margin-top:auto;"><b>入</b> 空标志 + 残差　<b>出</b> 漏填槽</p>
+    </div>
+    <div class="arrow">→</div>
+    <div class="step grow">
+      <span class="n">06 估计</span>
+      <h3>Estimate</h3>
+      <p>闭合之后才质疑估值。覆盖率、公允幅度对照同业。</p>
+      <div>
+        <span class="chip">ECL 覆盖</span><span class="chip">贷存比</span>
+        <span class="chip">投资物业公允</span>
+      </div>
+      <p class="io" style="margin-top:auto;"><b>入</b> 覆盖 / 公允比　<b>出</b> 离群 p</p>
+    </div>
+  </div>
+
+  <div class="band">
+    <div class="b b-pass"><h4>过</h4><p>相对残差 < 2%。空字段对应恒等已闭合。估计在同业邻域内。</p></div>
+    <div class="b b-review"><h4>复核</h4><p>2%–5%，或估计偏离一档。先对年报附注，不先当造假。</p></div>
+    <div class="b b-ex"><h4>例外</h4><p>≥ 5%。主表硬恒等（R01、R04）任何非零都不是业务波动。</p></div>
+  </div>
+  <p class="foot-note">小模型只做取数、取包、漏填、开口、离群。勾稽本身是恒等式，不是网络学出来的。</p>
+</section>
+
+<!-- 2 取数 + 取包 -->
+<section class="sheet">
+  <p class="kicker">01 取数 · 02 取包</p>
+  <h2>分节点 · 科目映射与规则包</h2>
+  <div class="grid2">
+    <div>
+      <div class="card" style="margin-bottom:8px;">
+        <h3 style="font-size:11pt;margin-bottom:4px;">Map-Net　100 → 40 → 24 softmax</h3>
+        <p class="muted" style="margin:0 0 6px;font-size:8.5pt;">不查词向量。特征是关键词是否出现、六个包、四张表位置。合成 HKFRS 双语别名上训练，十一条实报行名只做对照。</p>
+        <table>
+          <thead><tr><th>槽</th><th>规范科目</th><th>典型行名</th></tr></thead>
+          <tbody>
+            <tr><td>现金</td><td>货币资金 / 央行结余</td><td>Cash and balances at central banks</td></tr>
+            <tr><td>贷款</td><td>净额进主表应收；总额进附注</td><td>Loans and advances to customers</td></tr>
+            <tr><td>ECL</td><td>准备 / 计提分开</td><td>Expected credit losses</td></tr>
+            <tr><td>地产</td><td>投资物业、公允、待售</td><td>Investment properties</td></tr>
+            <tr><td>能源</td><td>PPE、弃置、燃料条款</td><td>Provision for dismantlement</td></tr>
+            <tr><td>交易所</td><td>自有现金 / 保证金现金</td><td>Margin deposits from Participants</td></tr>
+            <tr><td>平台</td><td>定期理财、回购、使用权</td><td>Term deposits · share buy-backs</td></tr>
+            <tr><td>其他</td><td>不进规范科目</td><td>Goodwill · derivatives</td></tr>
+          </tbody>
+        </table>
+        <p class="foot-note" style="margin:4px 0 0;">实报对照 46 / 47。留下的一条是汇丰「Expected credit losses on customer loans」——贷款和 ECL 同时出现。</p>
+      </div>
+    </div>
+    <div>
+      <div class="card" style="margin-bottom:8px;">
+        <h3 style="font-size:11pt;margin-bottom:4px;">Pack-Net　12 → 24 → 6 softmax</h3>
+        <p class="muted" style="margin:0 0 6px;font-size:8.5pt;">看贷款/资产、毛利率是否近 1、投资物业占比、保证金现金、定期理财。银行把毛利写成 0，避免被当成贸易公司。</p>
+        <table>
+          <thead><tr><th>包</th><th>蓝筹</th><th>结构信号</th></tr></thead>
+          <tbody>
+            <tr><td>银行</td><td>汇丰 · 恒生</td><td>贷款占资产大；无存货、无毛利</td></tr>
+            <tr><td>地产</td><td>新鸿基</td><td>投资物业 + 待售楼占资产</td></tr>
+            <tr><td>能源</td><td>中海油 · 中电</td><td>油气/电厂 PPE；可有弃置</td></tr>
+            <tr><td>平台</td><td>腾讯 · 美团</td><td>定期理财、回购、近零存货</td></tr>
+            <tr><td>交易所</td><td>港交所</td><td>保证金现金撑大资产负债表</td></tr>
+            <tr><td>通用</td><td>移动 · 小米 · 长和</td><td>以上都不像</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="card">
+        <h3 style="font-size:11pt;margin-bottom:4px;">包决定后面测什么</h3>
+        <p class="muted" style="margin:0;font-size:8.5pt;">取包错了，后面的闭合头、漏填槽、估计头都会走错。所以 Pack-Net 在主表之前。</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- 3 主表 -->
+<section class="sheet">
+  <p class="kicker">03 主表</p>
+  <h2>分节点 · 十条勾稽与行业跳过</h2>
+  <div class="grid2">
+    <div>
+      <table>
+        <thead><tr><th class="code">码</th><th>名称</th><th>式</th><th>性质</th></tr></thead>
+        <tbody>
+          <tr><td class="code">R01</td><td>资产负债恒等</td><td>资产 − (负债 + 权益) = 0</td><td>硬</td></tr>
+          <tr><td class="code">R02</td><td>货币资金滚存</td><td>Δ现金 − 现金净增加额 = 0</td><td>可截断</td></tr>
+          <tr><td class="code">R03</td><td>未分配利润滚存</td><td>ΔRE − (净利润 − 分红) = 0</td><td>截断；港股常开口</td></tr>
+          <tr><td class="code">R04</td><td>净利润桥</td><td>利润总额 − 所得税 − 净利润 = 0</td><td>硬</td></tr>
+          <tr><td class="code">R05</td><td>毛利勾稽</td><td>收入 − 成本 − 毛利 = 0</td><td>银行/交易所跳过</td></tr>
+          <tr><td class="code">R06</td><td>间接法现金流</td><td>CFO ≈ NI + DA − Δ营运资本</td><td>简化；多包跳过</td></tr>
+          <tr><td class="code">R07</td><td>固定资产滚存</td><td>期末 − (期初 + 开支 − 折旧)</td><td>银行/地产/能源跳过</td></tr>
+          <tr><td class="code">R08</td><td>应交税费滚存</td><td>期末 − (期初 + 所得税 − 已交)</td><td>可截断</td></tr>
+          <tr><td class="code">R09</td><td>应收 / 收入</td><td>周转变动</td><td>分析性；银行跳过</td></tr>
+          <tr><td class="code">R10</td><td>存货 / 成本</td><td>周转变动</td><td>分析性；银行/平台跳过</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div>
+      <p class="muted" style="margin:0 0 6px;font-size:8.5pt;">跳过写成「不适用」，不当例外。R03 / R07 在主表是截断式，完整项在附注里。</p>
+      <table>
+        <thead>
+          <tr>
+            <th></th><th>通用</th><th>银行</th><th>地产</th><th>能源</th><th>平台</th><th>交易所</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr><td>R01 资产负债</td><td class="on">测</td><td class="on">测</td><td class="on">测</td><td class="on">测</td><td class="on">测</td><td class="on">测</td></tr>
+          <tr><td>R02 现金</td><td class="on">测</td><td class="on">测</td><td class="on">测</td><td class="on">测</td><td class="on">测</td><td class="on">测</td></tr>
+          <tr><td>R03 未分配</td><td class="on">测</td><td class="on">测</td><td class="on">测</td><td class="on">测</td><td class="on">测</td><td class="on">测</td></tr>
+          <tr><td>R04 净利润桥</td><td class="on">测</td><td class="on">测</td><td class="on">测</td><td class="on">测</td><td class="on">测</td><td class="on">测</td></tr>
+          <tr><td>R05 毛利</td><td class="on">测</td><td class="skip">跳</td><td class="on">测</td><td class="on">测</td><td class="on">测</td><td class="skip">跳</td></tr>
+          <tr><td>R06 间接法</td><td class="on">测</td><td class="skip">跳</td><td class="skip">跳</td><td class="on">测</td><td class="on">测</td><td class="skip">跳</td></tr>
+          <tr><td>R07 PPE</td><td class="on">测</td><td class="skip">跳</td><td class="skip">跳</td><td class="skip">跳</td><td class="on">测</td><td class="skip">跳</td></tr>
+          <tr><td>R08 应交税</td><td class="on">测</td><td class="on">测</td><td class="on">测</td><td class="on">测</td><td class="on">测</td><td class="on">测</td></tr>
+          <tr><td>R09 应收周转</td><td class="on">测</td><td class="skip">跳</td><td class="on">测</td><td class="on">测</td><td class="on">测</td><td class="skip">跳</td></tr>
+          <tr><td>R10 存货周转</td><td class="on">测</td><td class="skip">跳</td><td class="on">测</td><td class="on">测</td><td class="skip">跳</td><td class="skip">跳</td></tr>
+        </tbody>
+      </table>
+      <p class="foot-note">银行没有营业成本，贷款不是赊销，存货近零——R05 / R09 / R10 会误导。地产投资物业按公允，不走成本折旧，R07 改测 P01。</p>
+    </div>
+  </div>
+</section>
+
+<!-- 4 附注 -->
+<section class="sheet">
+  <p class="kicker">04 附注闭合</p>
+  <h2>分节点 · 六个闭合头</h2>
+  <p class="muted" style="margin:0 0 8px;font-size:8.5pt;">每个头：16 维（8 条恒等的对数残差 + 相对残差）→ 32 ReLU → 16 ReLU → 1 sigmoid。合成开口样本上训。槽位语义按包换，网络形状不变。</p>
+  <div class="grid6">
+    <div>
+      <div class="pack-h">通用</div>
+      <div class="pack-b">
+        <div class="id">N01</div>权益完整滚存<br>
+        <div class="id">N02</div>PPE 完整滚存<br>
+        <div class="id">N03</div>现金含汇兑<br>
+        <div class="id">N04</div>有息负债<br>
+        <div class="id">N05</div>应交税 + 递延<br>
+        <div class="id">N06</div>无形资产<br>
+        <div class="id">N07</div>使用权资产<br>
+        <div class="id">N08</div>准备滚存
+      </div>
+    </div>
+    <div>
+      <div class="pack-h">银行</div>
+      <div class="pack-b">
+        <div class="id">N01</div>权益<br>
+        <div class="id">B01</div>ECL 准备滚存<br>
+        <div class="id">N03</div>现金含汇兑<br>
+        <div class="id">N04</div>批发负债<br>
+        <div class="id">N05</div>应交税<br>
+        <div class="id">B02</div>贷款总额 − ECL = 净额<br>
+        <div class="id">B03</div>贷存比（分析）<br>
+        <div class="id">B04</div>覆盖率（分析）
+      </div>
+    </div>
+    <div>
+      <div class="pack-h">地产</div>
+      <div class="pack-b">
+        <div class="id">N01</div>权益<br>
+        <div class="id">P01</div>投资物业滚存<br>
+        <div class="id">P02</div>待售物业滚存<br>
+        <div class="id">N03</div>现金含汇兑<br>
+        <div class="id">N04</div>有息负债<br>
+        <div class="id">N05</div>应交税<br>
+        <div class="id">P03</div>净负债率（分析）<br>
+        <div class="id">P04</div>公允 / 存量（分析）
+      </div>
+    </div>
+    <div>
+      <div class="pack-h">能源</div>
+      <div class="pack-b">
+        <div class="id">N01</div>权益<br>
+        <div class="id">E01</div>油气 / 电厂资产<br>
+        <div class="id">E02</div>弃置准备滚存<br>
+        <div class="id">N03</div>现金含汇兑<br>
+        <div class="id">N04</div>有息负债<br>
+        <div class="id">E03</div>使用权资产<br>
+        <div class="id">E04</div>折耗率（分析）<br>
+        <div class="id">E05</div>燃料条款（分析）
+      </div>
+    </div>
+    <div>
+      <div class="pack-h">平台</div>
+      <div class="pack-b">
+        <div class="id">N01</div>权益<br>
+        <div class="id">N02</div>PPE<br>
+        <div class="id">N03</div>现金含汇兑<br>
+        <div class="id">N04</div>有息负债<br>
+        <div class="id">N06</div>无形资产<br>
+        <div class="id">N07</div>使用权资产<br>
+        <div class="id">T01</div>定期 / 现金结构<br>
+        <div class="id">T02</div>回购 / 盈利
+      </div>
+    </div>
+    <div>
+      <div class="pack-h">交易所</div>
+      <div class="pack-b">
+        <div class="id">N01</div>权益<br>
+        <div class="id">X01</div>现金四段构成<br>
+        <div class="id">X02</div>保证金资产负债<br>
+        <div class="id">X03</div>结算所基金<br>
+        <div class="id">N03</div>现金含汇兑<br>
+        <div class="id">N05</div>应交税<br>
+        <div class="id">X04</div>自有现金占比<br>
+        <div class="id">X05</div>保证金规模变动
+      </div>
+    </div>
+  </div>
+  <p class="foot-note">N01 是所有包共用的完整权益滚存，补上主表 R03 缺的 OCI、回购、少数股东。分析性条目（B03、P04、E05、T02、X04）不单独当造假。</p>
+</section>
+
+<!-- 5 完备 + 估计 + 数据 -->
+<section class="sheet">
+  <p class="kicker">05 完备 · 06 估计 · 数据怎么进来</p>
+  <h2>分节点 · 漏填、离群、取数口径</h2>
+  <div class="grid3">
+    <div class="card">
+      <h3 style="font-size:11pt;margin-bottom:4px;">Completeness-Net　12 槽</h3>
+      <p class="muted" style="margin:0 0 6px;font-size:8.5pt;">独立 sigmoid，可同时漏多项。判定看残差为主：≥ 5% 例外，≥ 2% 复核。空且已闭合 = 过。</p>
+      <table>
+        <thead><tr><th>槽</th><th>适用包</th><th>对应恒等</th></tr></thead>
+        <tbody>
+          <tr><td>ECL 准备</td><td>银行</td><td>B01</td></tr>
+          <tr><td>贷款总额</td><td>银行</td><td>B02</td></tr>
+          <tr><td>客户存款</td><td>银行</td><td>B03（期望）</td></tr>
+          <tr><td>投资物业存量</td><td>地产</td><td>P01</td></tr>
+          <tr><td>投资物业滚存</td><td>地产</td><td>P01 购置/转入</td></tr>
+          <tr><td>开发成本</td><td>地产</td><td>P02</td></tr>
+          <tr><td>PPE 购置</td><td>能源 / 通用 / 平台</td><td>E01 / N02</td></tr>
+          <tr><td>弃置准备</td><td>能源</td><td>E02</td></tr>
+          <tr><td>弃置新井</td><td>能源</td><td>E02 计提</td></tr>
+          <tr><td>现金四段</td><td>交易所</td><td>X01</td></tr>
+          <tr><td>定期 / 理财</td><td>平台</td><td>T01（期望）</td></tr>
+          <tr><td>回购 / OCI / NCI</td><td>全部</td><td>N01</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="card">
+      <h3 style="font-size:11pt;margin-bottom:4px;">Estimate-Net　两只头</h3>
+      <p class="muted" style="margin:0 0 6px;font-size:8.5pt;">8 → 16 → 8 → 1。只在数字已经填上之后质疑幅度，不补漏填。</p>
+      <p style="margin:0 0 4px;"><b>ECL</b>　覆盖率、计提、核销、贷存比。偏离同业约 1.2% 邻域才复核。恒生覆盖 2.4% 落在复核带，汇丰 1.1% 过。</p>
+      <p style="margin:0 0 4px;"><b>公允</b>　投资物业公允变动 ÷ 存量。新鸿基 2025 年 −0.7% 是市况，放过。</p>
+      <p class="muted" style="margin:8px 0 0;font-size:8.5pt;">能源折耗、平台回购还没有独立估计头，暂走附注分析性条目 E04 / T02。</p>
+    </div>
+    <div class="card">
+      <h3 style="font-size:11pt;margin-bottom:4px;">数字怎么到模型</h3>
+      <p style="margin:0 0 6px;font-size:8.5pt;">模型不读年报 PDF。路径是：</p>
+      <ul class="tight" style="font-size:8.5pt;">
+        <li>年报披露数写入底稿映射表（百万 → 万元）。</li>
+        <li>只填年报里有的附注。没有的保持空，不估一个假数去闭合。</li>
+        <li>Map-Net 把行名映射到规范科目；人核对那 24 个槽。</li>
+        <li>Pack-Net 取包 → 主表 / 附注 / 完备 / 估计按包执行。</li>
+      </ul>
+      <p class="muted" style="margin:8px 0 0;font-size:8.5pt;">新鸿基「漏 3」是滚存分项没进映射表：投资物业购置/转入、开发成本、OCI/少数股东。存量 4,170 亿和公允 −27.3 亿是齐的。</p>
+    </div>
+  </div>
+  <div class="band" style="margin-top:10px;">
+    <div class="b" style="background:#EBE6DA;color:#1C1915;">
+      <h4>还没做的环节</h4>
+      <p>重要性（残差 × 规模 × 包 → 过/复核/例外的自适应门槛）· 单位（千元 / 百万元 / 亿元混用）· 能源折耗与平台回购的估计头。</p>
+    </div>
+  </div>
+</section>
+
+</body>
+</html>

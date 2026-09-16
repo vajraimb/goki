@@ -13,6 +13,7 @@ import {
   plugPackTruncation,
 } from "@/lib/goki/packs";
 import type { CloserScore, Issuer } from "@/lib/goki/types";
+import { PACK_LABEL } from "@/lib/goki/types";
 
 export function NoteCloser({ issuer }: { issuer: Issuer }) {
   const overlay = useCloserNotes((s) => s.byId[issuer.id]);
@@ -22,7 +23,7 @@ export function NoteCloser({ issuer }: { issuer: Issuer }) {
   const pack = packOf(issuer);
   const defs = noteRulesFor(pack);
   const [open, setOpen] = useState<string | null>(
-    pack === "bank" ? "b1" : pack === "realty" ? "p1" : pack === "energy" ? "e1" : pack === "exchange" ? "x1" : "n0",
+    pack === "bank" ? "b1" : pack === "realty" ? "p1" : pack === "energy" ? "e1" : pack === "exchange" ? "x1" : pack === "telco" ? "c1" : pack === "platform" ? "t3" : "n0",
   );
   const [scored, setScored] = useState<CloserScore | null>(null);
   const [truncatedMax, setTruncatedMax] = useState(0);
@@ -47,9 +48,9 @@ export function NoteCloser({ issuer }: { issuer: Issuer }) {
   return (
     <section className="rounded-lg bg-paper-2 p-4 shadow-[var(--shadow-border)]">
       <div className="flex flex-wrap items-baseline justify-between gap-2">
-        <h2 className="font-display text-xl">{pack === "generic" ? "附注闭合" : `${pack === "bank" ? "银行" : pack === "realty" ? "地产" : pack === "energy" ? "能源" : pack === "exchange" ? "交易所" : "平台"}附注闭合`}</h2>
+        <h2 className="font-display text-xl">{pack === "generic" ? "附注闭合" : `${PACK_LABEL[pack]}附注闭合`}</h2>
         <div className="flex flex-wrap gap-2">
-          {pack !== "generic" && <Badge tone="forest">{pack === "bank" ? "银行包" : pack === "realty" ? "地产包" : pack === "energy" ? "能源包" : pack === "exchange" ? "交易所包" : "平台包"}</Badge>}
+          {pack !== "generic" && <Badge tone="forest">{PACK_LABEL[pack]}包</Badge>}
           <Badge tone={scored.band === "exception" ? "exception" : scored.band === "review" ? "review" : "pass"}>
             {scored.band === "exception" ? "未闭合" : scored.band === "review" ? "复核" : "已闭合"}
           </Badge>
