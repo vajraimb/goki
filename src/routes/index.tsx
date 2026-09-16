@@ -7,29 +7,22 @@ import { pct } from "@/lib/goki/format";
 import { scoreComplete } from "@/lib/goki/complete-net";
 import { packOf, PACK_LABEL, sectorLabel } from "@/lib/goki/packs";
 import { maxIdentityAbsRel, maxStrictAbsRel } from "@/lib/goki/rules";
+import { evaluateGate, VERDICT_LABEL, verdictTone, type Verdict } from "@/lib/goki/verdict";
 import type { ScoredIssuer } from "@/lib/goki/types";
 import { cn } from "@/lib/cn";
 
 export const Route = createFileRoute("/")({ component: Home });
 
-function bandTone(band: ScoredIssuer["band"]) {
-  if (band === "exception") return "exception" as const;
-  if (band === "review") return "review" as const;
-  return "pass" as const;
-}
-
-function bandLabel(band: ScoredIssuer["band"]) {
-  if (band === "exception") return "例外";
-  if (band === "review") return "复核";
-  return "通过";
+function gateOf(s: ScoredIssuer): Verdict {
+  return s.verdict ?? evaluateGate(s.issuer).verdict;
 }
 
 function Home() {
   useMapIntake((s) => s.writes);
   const rows = getHkScored();
-  const nEx = rows.filter((r) => r.band === "exception").length;
-  const nRev = rows.filter((r) => r.band === "review").length;
-  const nPass = rows.filter((r) => r.band === "pass").length;
+  const nBlock = rows.filter((r) => gateOf(r) === "unresolved" || gateOf(r) === "unable").length;
+  const nInc = rows.filter((r) => gateOf(r) === "incomplete").length;
+  const nPass = rows.filter((r) => gateOf(r) === "pass").length;
   const nPack = new Set(rows.map((r) => packOf(r.issuer))).size;
 
   return (
@@ -41,18 +34,19 @@ function Home() {
           </p>
           <h1 className="mt-1 font-display text-4xl tracking-tight sm:text-5xl">年报勾稽队列</h1>
           <p className="mt-3 max-w-2xl text-sm leading-relaxed text-ink-soft">
-            十一条恒生蓝筹。按行业走规则包：银行、地产、能源、平台、电信、交易所、通用。硬恒等必须为零。漏填走 Completeness-Net，估计项另走 ECL / 公允。
+            十一条恒生蓝筹。未解释残差和映射缺项阻断。口径公式漏了已披露科目记不全，不算通过。Materiality-Net
+            只做咨询，不进门禁。半刻度从年报披露单位导出。
           </p>
         </div>
 
         <dl className="grid grid-cols-2 gap-2 sm:grid-cols-4">
           <div className="rounded-lg bg-paper-2 px-4 py-3 shadow-[var(--shadow-border)]">
-            <dt className="text-xs text-muted">例外</dt>
-            <dd className="mt-1 font-mono text-lg tabular-nums text-exception">{nEx}</dd>
+            <dt className="text-xs text-muted">阻断</dt>
+            <dd className="mt-1 font-mono text-lg tabular-nums text-exception">{nBlock}</dd>
           </div>
           <div className="rounded-lg bg-paper-2 px-4 py-3 shadow-[var(--shadow-border)]">
-            <dt className="text-xs text-muted">复核</dt>
-            <dd className="mt-1 font-mono text-lg tabular-nums text-review">{nRev}</dd>
+            <dt className="text-xs text-muted">不全</dt>
+            <dd className="mt-1 font-mono text-lg tabular-nums text-review">{nInc}</dd>
           </div>
           <div className="rounded-lg bg-paper-2 px-4 py-3 shadow-[var(--shadow-border)]">
             <dt className="text-xs text-muted">通过</dt>
@@ -75,7 +69,8 @@ function Home() {
                   <th className="px-3 py-2 text-right font-medium">硬恒等</th>
                   <th className="px-3 py-2 text-right font-medium">口径残差</th>
                   <th className="px-3 py-2 font-medium">完备</th>
-                  <th className="px-3 py-2 font-medium">分诊</th>
+                  <th className="px-3 py-2 font-medium">门禁</th>
+                  <th className="px-3 py-2 font-medium">咨询</th>
                 </tr>
               </thead>
               <tbody>
@@ -125,7 +120,12 @@ function Home() {
                         )}
                       </td>
                       <td className="px-3 py-2.5">
-                        <Badge tone={bandTone(s.band)}>{bandLabel(s.band)}</Badge>
+                        <Badge tone={verdictTone(gateOf(s))}>{VERDICT_LABEL[gateOf(s)]}</Badge>
+                      </td>
+                      <td className="px-3 py-2.5">
+                        <Badge tone="mute">
+                          {s.advisoryBand === "exception" ? "例外" : s.advisoryBand === "review" ? "复核" : "过"}
+                        </Badge>
                       </td>
                     </tr>
                   );

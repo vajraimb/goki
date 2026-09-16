@@ -9,8 +9,11 @@ export const RULES: RuleDef[] = [
     kind: "identity",
     strict: true,
     formula: "资产 − (负债 + 权益) = 0",
+    effectiveFrom: "2018-01-01",
+    appliesIf: "always",
+    authority: "HKAS 1",
     explain:
-      "资产负债表最硬的勾稽。任何非零残差都不是“业务波动”，只能是漏列、串户或取数口径不一致。舍入通常落在千元级。",
+      "资产负债表最硬的勾稽。任何非零残差都不是“业务波动”，只能是漏列、串户或取数口径不一致。容差是披露刻度的 n × 半刻度。",
   },
   {
     id: "r1",
@@ -29,10 +32,13 @@ export const RULES: RuleDef[] = [
     name: "未分配利润滚存",
     nameEn: "Retained-earnings rollforward",
     kind: "identity",
-    strict: false,
-    formula: "Δ未分配利润 − (净利润 − 分红) = 0",
+    strict: true,
+    formula: "Δ未分配利润 − (TCI − 分红 − 回购 + 股份支付 + NCI + 其他) = 0",
+    effectiveFrom: "2018-01-01",
+    appliesIf: "always",
+    authority: "HKAS 1 / SOCIE",
     explain:
-      "这是截断式。完整滚存是 ΔRE = 净利润 − 分红 + OCI − 回购 ± 储备结转 ± 少数股东。合成样本没有这些项，所以写成恒等；港股年报上这条几乎必然有缺口。",
+      "硬闭合。TCI 未单列时用净利润 + OCI。与所有者交易和组成部分转拨进附注槽。截断式「ΔRE − (NI − 分红)」只作诊断，不进门禁。",
   },
   {
     id: "r3",
@@ -63,7 +69,7 @@ export const RULES: RuleDef[] = [
     strict: false,
     formula: "CFO − (净利润 + 折旧 − Δ应收 − Δ存货 + Δ应付) = 0",
     explain:
-      "简化间接法恒等（本样本无其他营运资本项）。假利润通常在这里露馅：净利润上去了，经营现金流对不上。",
+      "简化间接法恒等（本样本无其他营运资本项）。假利润通常在这里露馋：净利润上去了，经营现金流对不上。",
   },
   {
     id: "r6",
@@ -71,10 +77,13 @@ export const RULES: RuleDef[] = [
     name: "固定资产滚存",
     nameEn: "PPE rollforward",
     kind: "identity",
-    strict: false,
-    formula: "期末固定资产 − (期初 + 资本开支 − 折旧) = 0",
+    strict: true,
+    formula: "期末 − (期初 + 购置 + 合并取得 − 处置/待售 − 折旧 − 减值 + 汇兑 + 重估) = 0",
+    effectiveFrom: "2018-01-01",
+    appliesIf: "always",
+    authority: "HKAS 16",
     explain:
-      "假设无处置、无在建结转、无减值、无重估、无使用权资产。完整式还要加减这些项。合成样本按此生成；实报上缺口首先是口径。",
+      "硬闭合。截断式「期初 + 资本开支 − 折旧」只作诊断。行业包关掉本条时改测 P01 / E01 / C01。",
   },
   {
     id: "r7",
@@ -161,10 +170,6 @@ function evalOne(prior: YearBooks, curr: YearBooks): Omit<RuleResult, "ruleId" |
 
 export function evaluateRules(prior: YearBooks, curr: YearBooks): RuleResult[] {
   const now = evalOne(prior, curr);
-  // YoY of the relative residual uses the prior year's own prior-on-prior identity,
-  // approximated by evaluating the same formulas with curr:=prior and a cloned prior.
-  // For a 2-year sample we compare rel against a quiet baseline of 0 for identities
-  // and against last year's analytic ratio already encoded in rel.
   return RULES.map((rule, i) => {
     const n = now[i]!;
     return {
