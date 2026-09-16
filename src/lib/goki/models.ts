@@ -55,7 +55,7 @@ export function ensureAllModels(): ModelCatalog {
       id: "materiality-net",
       name: "Materiality-Net",
       nameEn: "pass / review / exception",
-      role: "主表残差 × 净利润/资产 × 是否硬恒等 → 过 / 复核 / 例外。附注开口走闭合和完备，不直接把发行人打红。",
+      role: "咨询分诊：主表残差 × 净利润/资产 → 过 / 复核 / 例外。不进门禁。阻断只看未解释残差与映射缺项。",
       arch: `${MAT_IN} → 16 ReLU → 3 softmax`,
       inDim: MAT_IN,
       params: materiality.paramCount,
