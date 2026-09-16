@@ -7,14 +7,23 @@ import { checksumShort, compactP, pct } from "@/lib/goki/format";
 import { buildHkIssuers } from "@/lib/goki/hk-bluechips";
 import { ensureAllModels, estimatesFor, type ModelCard } from "@/lib/goki/models";
 import { packOf, PACK_LABEL } from "@/lib/goki/packs";
-import type { EstimateScore, PackGuess } from "@/lib/goki/types";
+import type { CompletenessScore, EstimateScore, PackGuess } from "@/lib/goki/types";
 
 export const Route = createFileRoute("/models")({ component: ModelsPage });
 
 function ModelsPage() {
   const [cards, setCards] = useState<ModelCard[] | null>(null);
   const [rows, setRows] = useState<
-    { id: string; ticker: string; name: string; pack: string; guess: PackGuess; ecl: EstimateScore | null; fv: EstimateScore | null }[] | null
+    {
+      id: string;
+      ticker: string;
+      name: string;
+      pack: string;
+      guess: PackGuess;
+      ecl: EstimateScore | null;
+      fv: EstimateScore | null;
+      complete: CompletenessScore;
+    }[] | null
   >(null);
 
   useEffect(() => {
@@ -32,6 +41,7 @@ function ModelsPage() {
           guess: e.pack,
           ecl: e.ecl,
           fv: e.fv,
+          complete: e.complete,
         };
       }),
     );
@@ -41,8 +51,8 @@ function ModelsPage() {
     return (
       <Shell>
         <p className="font-mono text-xs tracking-[0.18em] text-muted uppercase">Small models</p>
-        <h1 className="mt-1 font-display text-4xl tracking-tight">六个小模型</h1>
-        <p className="mt-3 text-sm text-ink-soft">正在编译 Pack-Net、六行业闭合头、ECL 与公允估计头…</p>
+        <h1 className="mt-1 font-display text-4xl tracking-tight">小模型工作链</h1>
+        <p className="mt-3 text-sm text-ink-soft">正在编译 Pack-Net、六行业闭合头、Completeness-Net、ECL 与公允估计头…</p>
       </Shell>
     );
   }
@@ -58,16 +68,17 @@ function ModelsPage() {
           </p>
           <h1 className="mt-1 font-display text-4xl tracking-tight sm:text-5xl">小模型工作链</h1>
           <p className="mt-3 max-w-2xl text-sm leading-relaxed text-ink-soft">
-            年报审核拆成四个环节，每个环节一个能独立训练的小网络。合成语料上固定种子，港股实报上只做推断。模型不读 PDF。
+            年报审核拆成五个环节。每个小网络独立训练，合成语料固定种子，港股实报只做推断。模型不读 PDF。
           </p>
         </div>
 
-        <ol className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
+        <ol className="grid gap-2 sm:grid-cols-2 lg:grid-cols-5">
           {[
             ["1 取包", "Pack-Net 看结构比率，决定银行/地产/能源/平台/交易所/通用。"],
             ["2 主表", "十条勾稽。行业包关掉不适用的恒等。"],
             ["3 附注", "对应行业的闭合头，16 维残差 → 开口概率。"],
-            ["4 估计", "银行质疑 ECL 覆盖率，地产质疑投资物业公允。"],
+            ["4 完备", "Completeness-Net 看漏填。空且恒等仍闭合的不当漏填。"],
+            ["5 估计", "银行质疑 ECL 覆盖率，地产质疑投资物业公允。"],
           ].map(([t, b]) => (
             <li key={t} className="rounded-lg bg-paper-2 px-4 py-3 shadow-[var(--shadow-border)]">
               <p className="font-display text-lg">{t}</p>
@@ -112,12 +123,13 @@ function ModelsPage() {
           </div>
           <div className="mt-3 overflow-hidden rounded-lg bg-paper-2 shadow-[var(--shadow-border)]">
             <div className="overflow-x-auto">
-              <table className="w-full min-w-[40rem] border-collapse text-sm">
+              <table className="w-full min-w-[48rem] border-collapse text-sm">
                 <thead>
                   <tr className="border-b border-rule text-left text-xs text-muted">
                     <th className="px-3 py-2 font-medium">发行人</th>
                     <th className="px-3 py-2 font-medium">指定包</th>
                     <th className="px-3 py-2 font-medium">Pack-Net</th>
+                    <th className="px-3 py-2 font-medium">完备</th>
                     <th className="px-3 py-2 text-right font-medium">ECL p</th>
                     <th className="px-3 py-2 text-right font-medium">公允 p</th>
                   </tr>
@@ -139,6 +151,15 @@ function ModelsPage() {
                         <span className="ml-1 font-mono text-xs text-muted">
                           {pct(r.guess.probs[r.guess.pack], 0)}
                         </span>
+                      </td>
+                      <td className="px-3 py-2.5">
+                        {r.complete.missing.length === 0 ? (
+                          <span className="text-pass">齐</span>
+                        ) : (
+                          <span className={r.complete.band === "exception" ? "text-exception" : "text-review"}>
+                            {r.complete.missing.map((h) => h.label).join("、")}
+                          </span>
+                        )}
                       </td>
                       <td className="px-3 py-2.5 text-right font-mono tabular-nums">
                         {r.ecl ? compactP(r.ecl.pOutlier) : "—"}

@@ -97,6 +97,20 @@ let%op logits x = ({ w2 } * h x) + { b2; o = [ n_class ] }
 `,
   },
   {
+    path: "bin/complete_net.ml",
+    title: "Completeness-Net · 26→24→12 sigmoid",
+    body: `(* Pack one-hot + empty flags + note-identity rels → missing slots.
+   Independent sigmoid, not softmax: several fields can be missing at once.
+   Empty + closed identity is NOT missing. *)
+let n_features = 26
+let hid = 24
+let n_slot = 12
+let init_seed = 47
+let%op h x = relu (({ w1 } * x) + { b1; o = [ hid ] })
+let%op logits x = ({ w2 } * h x) + { b2; o = [ n_slot ] }
+`,
+  },
+  {
     path: "bin/realty_closer.ml",
     title: "Realty-Closer · 投资物业 / 待售",
     body: `(* P01 IP_end − (beg + add + transfer + FV − disp)

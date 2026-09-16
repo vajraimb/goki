@@ -289,3 +289,21 @@ export interface PackGuess {
   assigned: RulePack;
   match: boolean;
 }
+
+export interface CompletenessHit {
+  id: string;
+  label: string;
+  p: number;
+  empty: boolean;
+  rel: number;
+  related: string;
+  band: "exception" | "review" | "pass";
+}
+
+export interface CompletenessScore {
+  pMissing: number;
+  hits: CompletenessHit[];
+  missing: CompletenessHit[];
+  band: "exception" | "review" | "pass";
+  features: number[];
+}

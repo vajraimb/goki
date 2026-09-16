@@ -14,7 +14,7 @@ import { DISPOSITION_LABEL, useNotes, type Disposition } from "@/lib/goki/notes"
 import { packOf, PACK_LABEL, sectorLabel } from "@/lib/goki/packs";
 import { reconAro, reconEcl, reconIp, reconMargin, reconR03, reconR07 } from "@/lib/goki/recon";
 import { RULES, totalAssets, totalLE } from "@/lib/goki/rules";
-import { SIZE_LABEL, type Issuer, type RulePack } from "@/lib/goki/types";
+import { SIZE_LABEL, type CompletenessScore, type Issuer, type RulePack } from "@/lib/goki/types";
 
 export const Route = createFileRoute("/issuer/$id")({ component: IssuerPage });
 
@@ -208,6 +208,7 @@ function IssuerPage() {
 
             <PackRecon issuer={issuer} pack={pack} />
             <EstimatePanel issuer={issuer} pack={pack} />
+            <CompletePanel issuer={issuer} />
             <NoteCloser issuer={issuer} />
 
             <section className="rounded-lg bg-paper-2 p-4 shadow-[var(--shadow-border)]">
@@ -395,6 +396,51 @@ function EstimatePanel({ issuer, pack }: { issuer: Issuer; pack: RulePack }) {
             ? "偏离值得对照附注。"
             : "偏离过大，要质疑模型/估值假设。"}
       </p>
+    </section>
+  );
+}
+
+function CompletePanel({ issuer }: { issuer: Issuer }) {
+  const { complete } = estimatesFor(issuer);
+  return <CompletenessCard score={complete} />;
+}
+
+function CompletenessCard({ score }: { score: CompletenessScore }) {
+  return (
+    <section className="rounded-lg bg-paper-2 p-4 shadow-[var(--shadow-border)]">
+      <div className="flex flex-wrap items-baseline justify-between gap-2">
+        <h2 className="font-display text-xl">附注完备</h2>
+        <Badge tone={score.band === "exception" ? "exception" : score.band === "review" ? "review" : "pass"}>
+          {score.missing.length === 0 ? "齐" : `漏 ${score.missing.length}`}
+        </Badge>
+      </div>
+      <p className="mt-1 text-xs leading-relaxed text-ink-soft">
+        Completeness-Net：适用字段为空、且对应恒等开口，才叫漏填。空着但公式已经闭合的，不当漏填。
+      </p>
+      {score.missing.length === 0 ? (
+        <p className="mt-3 text-sm text-pass">适用项已填，或空字段没有对应开口。</p>
+      ) : (
+        <ul className="mt-3 divide-y divide-rule">
+          {score.missing.map((h) => (
+            <li key={h.id} className="flex items-baseline justify-between gap-3 py-2 first:pt-0 last:pb-0">
+              <div>
+                <p className="text-sm">{h.label}</p>
+                <p className="mt-0.5 font-mono text-xs text-muted">
+                  {h.related} 残差 {pct(h.rel, 1)} · p {compactP(h.p)}
+                </p>
+              </div>
+              <span
+                className={cn(
+                  "font-mono text-xs tabular-nums",
+                  h.band === "exception" ? "text-exception" : "text-review",
+                )}
+              >
+                {h.band === "exception" ? "漏填" : "待核"}
+              </span>
+            </li>
+          ))}
+        </ul>
+      )}
     </section>
   );
 }

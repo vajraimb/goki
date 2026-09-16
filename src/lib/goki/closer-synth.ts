@@ -384,3 +384,32 @@ export function generatePackCloserIssuers(
     return finishIssuer(issuer, rng, pack);
   });
 }
+
+/** Clean closed notes only — used to teach Completeness-Net what “齐” looks like. */
+export function generateClosedPackIssuers(pack: RulePack, seed: number, n = 80): Issuer[] {
+  const industry =
+    pack === "bank" || pack === "exchange"
+      ? "bank"
+      : pack === "realty"
+        ? "realty"
+        : pack === "energy"
+          ? "energy"
+          : pack === "platform"
+            ? "tech"
+            : undefined;
+  const base = generateIssuers(seed, n, industry);
+  const rng = mulberry32(seed + 77);
+  return base.map((iss, i) => {
+    const closed = closerOf(pack, iss, rng);
+    return {
+      ...iss,
+      id: `closed-${pack}-${String(i).padStart(4, "0")}`,
+      pack,
+      industry: industry ?? iss.industry,
+      priorNotes: closed.prior,
+      currNotes: closed.curr,
+      inject: "clean" as const,
+      errorKinds: [],
+    };
+  });
+}

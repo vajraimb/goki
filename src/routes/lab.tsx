@@ -54,8 +54,8 @@ function LabPage() {
         />
         <Paradigm
           n="D"
-          title="行业闭合头 + 估计头"
-          body="六个 16→32→16→1 闭合头，外加 Pack-Net 和 ECL/公允估计。合成样本上训，港股底稿上填。"
+          title="行业闭合头 + 完备 + 估计头"
+          body="六个 16→32→16→1 闭合头，Pack-Net 取包，Completeness-Net 找漏填，ECL/公允估计。合成样本上训，港股底稿上填。"
         />
       </div>
 

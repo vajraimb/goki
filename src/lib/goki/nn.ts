@@ -518,3 +518,69 @@ export function softmaxSgdStep(
   return loss / n;
 }
 
+export function sigmoidKForward(m: SoftmaxNet, x: ArrayLike<number>) {
+  const pre = new Float32Array(m.h);
+  const h = new Float32Array(m.h);
+  matvecAdd(m.w1, x, m.h, m.in, m.b1, pre);
+  for (let i = 0; i < m.h; i++) h[i] = pre[i]! > 0 ? pre[i]! : 0;
+  const z = new Float32Array(m.k);
+  matvecAdd(m.w2, h, m.k, m.h, m.b2, z);
+  const p = new Float32Array(m.k);
+  for (let i = 0; i < m.k; i++) p[i] = sigmoid(z[i]!);
+  return { pre, h, z, p };
+}
+
+/** Independent sigmoid BCE. ys[i] is a k-hot vector, not a class index. */
+export function multiBceSgdStep(
+  m: SoftmaxNet,
+  xs: Float32Array[],
+  ys: number[][],
+  idx: number[],
+  lr: number,
+  l2: number,
+): number {
+  const n = idx.length;
+  const gW1 = zeros(m.w1.length);
+  const gB1 = zeros(m.b1.length);
+  const gW2 = zeros(m.w2.length);
+  const gB2 = zeros(m.b2.length);
+  let loss = 0;
+  for (const i of idx) {
+    const x = xs[i]!;
+    const y = ys[i]!;
+    const { pre, h, z, p } = sigmoidKForward(m, x);
+    const dz = new Float32Array(m.k);
+    for (let k = 0; k < m.k; k++) {
+      const t = y[k] ?? 0;
+      loss += bceWithLogits(z[k]!, t);
+      dz[k] = p[k]! - t;
+    }
+    for (let k = 0; k < m.k; k++) {
+      gB2[k]! += dz[k]!;
+      const row = k * m.h;
+      for (let j = 0; j < m.h; j++) gW2[row + j]! += dz[k]! * h[j]!;
+    }
+    const dh = new Float32Array(m.h);
+    for (let j = 0; j < m.h; j++) {
+      let s = 0;
+      for (let k = 0; k < m.k; k++) s += m.w2[k * m.h + j]! * dz[k]!;
+      dh[j] = s * (pre[j]! > 0 ? 1 : 0);
+    }
+    for (let j = 0; j < m.h; j++) {
+      gB1[j]! += dh[j]!;
+      const row = j * m.in;
+      for (let t = 0; t < m.in; t++) gW1[row + t]! += dh[j]! * x[t]!;
+    }
+  }
+  const scale = lr / n;
+  const decay = 1 - lr * l2;
+  const apply = (w: Float32Array, g: Float32Array) => {
+    for (let i = 0; i < w.length; i++) w[i] = w[i]! * decay - scale * g[i]!;
+  };
+  apply(m.w1, gW1);
+  apply(m.b1, gB1);
+  apply(m.w2, gW2);
+  apply(m.b2, gB2);
+  return loss / (n * m.k);
+}
+

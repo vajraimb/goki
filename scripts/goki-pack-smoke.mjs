@@ -4,6 +4,7 @@ import { maxStrictAbsRel } from "../src/lib/goki/rules.ts";
 import { guessPack } from "../src/lib/goki/pack-net.ts";
 import { scoreEcl, scoreFv, getEclNet, getFvNet } from "../src/lib/goki/estimate-net.ts";
 import { getPackNet } from "../src/lib/goki/pack-net.ts";
+import { getCompleteNet, scoreComplete } from "../src/lib/goki/complete-net.ts";
 import { ensureCloser } from "../src/lib/goki/closer-engine.ts";
 
 const pn = getPackNet();
@@ -12,6 +13,9 @@ const ecl = getEclNet();
 console.log("ECL-Net auc", ecl.auc.toFixed(3), "params", ecl.paramCount);
 const fv = getFvNet();
 console.log("FV-Net auc", fv.auc.toFixed(3), "params", fv.paramCount);
+const cn = getCompleteNet();
+console.log("Complete-Net auc", cn.auc.toFixed(3), "params", cn.paramCount, "ms", Math.round(cn.trainMs));
+console.log("  slot auc", cn.slotAuc.map((a, i) => a.toFixed(2)).join(" "));
 
 for (const pack of ["generic", "bank", "realty", "energy", "platform", "exchange"]) {
   const m = ensureCloser(pack);
@@ -35,6 +39,7 @@ for (const iss of issuers) {
   const g = guessPack(iss);
   const e = scoreEcl(iss);
   const f = scoreFv(iss);
+  const c = scoreComplete(iss);
   console.log(
     iss.ticker,
     pack,
@@ -45,5 +50,6 @@ for (const iss of issuers) {
     ids.join(" "),
     e ? `ecl ${e.pOutlier.toFixed(2)}/${(e.actual * 100).toFixed(2)}%` : "",
     f ? `fv ${f.pOutlier.toFixed(2)}/${(f.actual * 100).toFixed(2)}%` : "",
+    c.missing.length ? "漏 " + c.missing.map((h) => h.id).join(",") : "齐",
   );
 }

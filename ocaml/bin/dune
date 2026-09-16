@@ -47,3 +47,8 @@
  (name estimate_fv)
  (public_name goki-estimate-fv)
  (libraries goki base ocannl stdio))
+
+(executable
+ (name complete_net)
+ (public_name goki-complete-net)
+ (libraries goki base ocannl stdio))

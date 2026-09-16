@@ -1,8 +1,9 @@
 import { ensureAllClosers, ensureCloser } from "./closer-engine";
 import { ensureEstimateNets, getEclNet, getFvNet, scoreEcl, scoreFv } from "./estimate-net";
+import { ensureCompleteNet, getCompleteNet, scoreComplete } from "./complete-net";
 import { getPackNet, guessPack } from "./pack-net";
-import type { EstimateScore, Issuer, Metrics, PackGuess, RulePack } from "./types";
-import { PACK_LABEL, RULE_PACKS } from "./types";
+import type { CompletenessScore, EstimateScore, Issuer, Metrics, PackGuess, RulePack } from "./types";
+import { PACK_LABEL } from "./types";
 
 export interface ModelCard {
   id: string;
@@ -28,6 +29,7 @@ export function ensureAllModels(): ModelCatalog {
   const closers = ensureAllClosers();
   const packNet = getPackNet();
   const { ecl, fv } = ensureEstimateNets();
+  const complete = ensureCompleteNet();
   const cards: ModelCard[] = [
     {
       id: "pack-net",
@@ -57,6 +59,20 @@ export function ensureAllModels(): ModelCatalog {
       trainMs: c.metrics.trainMs,
       ocaml: c.pack === "generic" ? "ocaml/bin/closer.ml" : `ocaml/bin/${c.pack}_closer.ml`,
     })),
+    {
+      id: "complete-net",
+      name: "Completeness-Net",
+      nameEn: "missing-note slots",
+      role: "包 one-hot + 字段是否为空 + 附注残差 → 漏填了哪几项。空且恒等仍闭合的，不当漏填。",
+      arch: "26 → 24 ReLU → 12 sigmoid",
+      inDim: 26,
+      params: complete.paramCount,
+      metricLabel: "micro AUC",
+      metric: complete.auc,
+      checksum: complete.checksum,
+      trainMs: complete.trainMs,
+      ocaml: "ocaml/bin/complete_net.ml",
+    },
     {
       id: "ecl-net",
       name: "Estimate-Net ECL",
@@ -92,14 +108,21 @@ export function ensureAllModels(): ModelCatalog {
 export function warmupIssuerHeads(issuer: Issuer) {
   ensureCloser(issuer.pack ?? "generic");
   getPackNet();
+  getCompleteNet();
 }
 
-export function estimatesFor(issuer: Issuer): { ecl: EstimateScore | null; fv: EstimateScore | null; pack: PackGuess } {
+export function estimatesFor(issuer: Issuer): {
+  ecl: EstimateScore | null;
+  fv: EstimateScore | null;
+  pack: PackGuess;
+  complete: CompletenessScore;
+} {
   return {
     ecl: scoreEcl(issuer),
     fv: scoreFv(issuer),
     pack: guessPack(issuer),
+    complete: scoreComplete(issuer),
   };
 }
 
-export { guessPack, scoreEcl, scoreFv, getEclNet, getFvNet, getPackNet };
+export { guessPack, scoreEcl, scoreFv, scoreComplete, getEclNet, getFvNet, getPackNet, getCompleteNet };

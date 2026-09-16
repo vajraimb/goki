@@ -3,6 +3,7 @@ import { Shell } from "@/components/shell";
 import { Badge } from "@/components/ui/badge";
 import { getHkScored } from "@/lib/goki/hk-bluechips";
 import { pct } from "@/lib/goki/format";
+import { scoreComplete } from "@/lib/goki/complete-net";
 import { packOf, PACK_LABEL, sectorLabel } from "@/lib/goki/packs";
 import { maxIdentityAbsRel, maxStrictAbsRel } from "@/lib/goki/rules";
 import type { ScoredIssuer } from "@/lib/goki/types";
@@ -38,7 +39,7 @@ function Home() {
           </p>
           <h1 className="mt-1 font-display text-4xl tracking-tight sm:text-5xl">年报勾稽队列</h1>
           <p className="mt-3 max-w-2xl text-sm leading-relaxed text-ink-soft">
-            十一条恒生蓝筹。按行业走规则包：银行、地产、能源、平台、交易所、通用。硬恒等必须为零。估计项另走 ECL / 公允小模型。
+            十一条恒生蓝筹。按行业走规则包：银行、地产、能源、平台、交易所、通用。硬恒等必须为零。漏填走 Completeness-Net，估计项另走 ECL / 公允。
           </p>
         </div>
 
@@ -63,7 +64,7 @@ function Home() {
 
         <div className="overflow-hidden rounded-lg bg-paper-2 shadow-[var(--shadow-border)]">
           <div className="overflow-x-auto">
-            <table className="w-full min-w-[36rem] border-collapse text-sm">
+            <table className="w-full min-w-[42rem] border-collapse text-sm">
               <thead>
                 <tr className="border-b border-rule text-left text-xs text-muted">
                   <th className="px-3 py-2 font-medium">代码</th>
@@ -71,6 +72,7 @@ function Home() {
                   <th className="px-3 py-2 font-medium">规则包</th>
                   <th className="px-3 py-2 text-right font-medium">硬恒等</th>
                   <th className="px-3 py-2 text-right font-medium">口径残差</th>
+                  <th className="px-3 py-2 font-medium">完备</th>
                   <th className="px-3 py-2 font-medium">分诊</th>
                 </tr>
               </thead>
@@ -79,6 +81,7 @@ function Home() {
                   const maxRel = s.maxRel ?? maxIdentityAbsRel(s.rules);
                   const hard = maxStrictAbsRel(s.rules);
                   const pack = packOf(s.issuer);
+                  const complete = scoreComplete(s.issuer);
                   return (
                     <tr key={s.issuer.id} className="border-b border-rule/70 last:border-0">
                       <td className="px-3 py-2.5 font-mono text-xs tabular-nums text-muted">
@@ -109,6 +112,15 @@ function Home() {
                       </td>
                       <td className="px-3 py-2.5 text-right font-mono tabular-nums">
                         {pct(maxRel, 1)}
+                      </td>
+                      <td className="px-3 py-2.5">
+                        {complete.missing.length === 0 ? (
+                          <span className="text-pass">齐</span>
+                        ) : (
+                          <span className={complete.band === "exception" ? "text-exception" : "text-review"}>
+                            漏 {complete.missing.length}
+                          </span>
+                        )}
                       </td>
                       <td className="px-3 py-2.5">
                         <Badge tone={bandTone(s.band)}>{bandLabel(s.band)}</Badge>
