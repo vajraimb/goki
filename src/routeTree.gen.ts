@@ -16,6 +16,7 @@ import { Route as LabRouteImport } from './routes/lab'
 import { Route as MapRouteImport } from './routes/map'
 import { Route as ModelsRouteImport } from './routes/models'
 import { Route as RulesRouteImport } from './routes/rules'
+import { Route as WorkRouteImport } from './routes/work'
 import { Route as IssuerIdRouteImport } from './routes/issuer.$id'
 
 const IndexRoute = IndexRouteImport.update({
@@ -53,6 +54,11 @@ const RulesRoute = RulesRouteImport.update({
   path: '/rules',
   getParentRoute: () => rootRouteImport,
 } as any)
+const WorkRoute = WorkRouteImport.update({
+  id: '/work',
+  path: '/work',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const IssuerIdRoute = IssuerIdRouteImport.update({
   id: '/issuer/$id',
   path: '/issuer/$id',
@@ -67,6 +73,7 @@ export interface FileRoutesByFullPath {
   '/map': typeof MapRoute
   '/models': typeof ModelsRoute
   '/rules': typeof RulesRoute
+  '/work': typeof WorkRoute
   '/issuer/$id': typeof IssuerIdRoute
 }
 export interface FileRoutesByTo {
@@ -77,6 +84,7 @@ export interface FileRoutesByTo {
   '/map': typeof MapRoute
   '/models': typeof ModelsRoute
   '/rules': typeof RulesRoute
+  '/work': typeof WorkRoute
   '/issuer/$id': typeof IssuerIdRoute
 }
 export interface FileRoutesById {
@@ -88,6 +96,7 @@ export interface FileRoutesById {
   '/map': typeof MapRoute
   '/models': typeof ModelsRoute
   '/rules': typeof RulesRoute
+  '/work': typeof WorkRoute
   '/issuer/$id': typeof IssuerIdRoute
 }
 export interface FileRouteTypes {
@@ -100,6 +109,7 @@ export interface FileRouteTypes {
     | '/map'
     | '/models'
     | '/rules'
+    | '/work'
     | '/issuer/$id'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -110,6 +120,7 @@ export interface FileRouteTypes {
     | '/map'
     | '/models'
     | '/rules'
+    | '/work'
     | '/issuer/$id'
   id:
     | '__root__'
@@ -120,6 +131,7 @@ export interface FileRouteTypes {
     | '/map'
     | '/models'
     | '/rules'
+    | '/work'
     | '/issuer/$id'
   fileRoutesById: FileRoutesById
 }
@@ -131,6 +143,7 @@ export interface RootRouteChildren {
   MapRoute: typeof MapRoute
   ModelsRoute: typeof ModelsRoute
   RulesRoute: typeof RulesRoute
+  WorkRoute: typeof WorkRoute
   IssuerIdRoute: typeof IssuerIdRoute
 }
 
@@ -185,6 +198,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof RulesRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/work': {
+      id: '/work'
+      path: '/work'
+      fullPath: '/work'
+      preLoaderRoute: typeof WorkRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/issuer/$id': {
       id: '/issuer/$id'
       path: '/issuer/$id'
@@ -203,17 +223,9 @@ const rootRouteChildren: RootRouteChildren = {
   MapRoute: MapRoute,
   ModelsRoute: ModelsRoute,
   RulesRoute: RulesRoute,
+  WorkRoute: WorkRoute,
   IssuerIdRoute: IssuerIdRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
-
-import type { getRouter } from './router.tsx'
-import type { createStart } from '@tanstack/react-start'
-declare module '@tanstack/react-start' {
-  interface Register {
-    ssr: true
-    router: Awaited<ReturnType<typeof getRouter>>
-  }
-}

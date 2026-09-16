@@ -5,6 +5,7 @@ import { evaluateMainRules, packOf } from "./packs";
 import { EMPTY_BOOKS } from "./statements";
 import { liveIssuers } from "./map-intake";
 import { bandIssuer } from "./materiality-net";
+import { evaluateGate, gateToBand, VERDICT_RANK } from "./verdict";
 import type { Industry, Issuer, NoteBooks, RulePack, ScoredIssuer, YearBooks } from "./types";
 
 /** Millions of reporting currency → 万元. */
@@ -640,20 +641,9 @@ export function buildHkIssuers(): Issuer[] {
     const currRaw = { ...s.curr, ...patch?.curr };
     const prior = books(s.prior);
     const curr = books(currRaw);
-    if (currRaw.cfo == null) {
-      const dAr = curr.ar - prior.ar;
-      const dInv = curr.inv - prior.inv;
-      const dAp = curr.ap - prior.ap;
-      curr.cfo = curr.ni + curr.da - dAr - dInv + dAp;
-      if (currRaw.cfi == null && currRaw.cff == null) {
-        curr.cfi = -curr.capex;
-        curr.cff = curr.netCf - curr.cfo - curr.cfi;
-      }
-    }
-    if (currRaw.netCf == null) {
-      curr.netCf = curr.cash - prior.cash;
-      if (currRaw.cff == null) curr.cff = curr.netCf - curr.cfo - curr.cfi;
-    }
+    /** P0: no synthesised CFO and no netCf back-solved from Δcash.
+     *  An undisclosed cash-flow line stays 0, and the gate reads it as unable
+     *  (missing mapping) instead of silently closing R02 / R06. */
     const currNotes = notesOf(patch?.notes);
     if (currRaw.netCf != null) {
       currNotes.fxCash = curr.cash - prior.cash - curr.netCf;
@@ -680,6 +670,7 @@ export function buildHkIssuers(): Issuer[] {
       currNotes,
       source: "hkex" as const,
       currency: s.currency,
+      sourceScale: "million" as const,
       periodLabel: s.periodLabel,
       unitLabel: s.unitLabel,
       caveats: [
@@ -703,6 +694,7 @@ export function buildHkIssuers(): Issuer[] {
   });
 }
 
+/** Gate decides the band. The MLP band is kept as advisoryBand only. */
 export function scoreHk(issuer: Issuer): ScoredIssuer {
   const { features } = issuerFeatures(issuer);
   const rules = evaluateMainRules(issuer);
@@ -720,6 +712,7 @@ export function scoreHk(issuer: Issuer): ScoredIssuer {
     })
     .sort((a, b) => Math.abs(b.value) - Math.abs(a.value))
     .slice(0, 6);
+  const gate = evaluateGate(issuer);
   return {
     issuer,
     rules,
@@ -729,7 +722,9 @@ export function scoreHk(issuer: Issuer): ScoredIssuer {
     cashPred,
     cashResidual,
     attribution,
-    band: bandIssuer(issuer, rules),
+    band: gateToBand(gate.verdict),
+    verdict: gate.verdict,
+    advisoryBand: bandIssuer(issuer, rules),
     maxRel: maxSoft,
   };
 }
@@ -737,7 +732,11 @@ export function scoreHk(issuer: Issuer): ScoredIssuer {
 export function getHkScored(): ScoredIssuer[] {
   return liveIssuers(buildHkIssuers())
     .map(scoreHk)
-    .sort((a, b) => (b.maxRel ?? 0) - (a.maxRel ?? 0));
+    .sort((a, b) => {
+      const d = VERDICT_RANK[b.verdict ?? "pass"] - VERDICT_RANK[a.verdict ?? "pass"];
+      if (d !== 0) return d;
+      return (b.maxRel ?? 0) - (a.maxRel ?? 0);
+    });
 }
 
 export function findHk(id: string): ScoredIssuer | undefined {

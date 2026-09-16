@@ -39,6 +39,8 @@ function floorOf(curr: YearBooks): number {
   return Math.max(nz(curr.ni, 10), 10);
 }
 
+/** P0: the plug is the identity. Nothing writes a residual catch-all into the notes.
+ *  A gap that the disclosed notes cannot absorb must surface as unresolved / unable. */
 function plugCommon(issuer: Issuer, notes: NoteBooks): NoteBooks {
   return plugTruncation(issuer, notes);
 }
@@ -151,14 +153,9 @@ export function evaluateBankNotes(
   ]);
 }
 
+/** Was: derived loansGross, forced eclFx to close B01, guessed deposits from otherL. */
 function plugBank(issuer: Issuer, notes: NoteBooks): NoteBooks {
-  const n = plugCommon(issuer, notes);
-  const priorNotes = issuer.priorNotes;
-  const pEcl = priorNotes?.ecl ?? 0;
-  n.loansGross = issuer.curr.ar + n.ecl;
-  n.eclFx += n.ecl - (pEcl + n.eclCharge - n.eclWriteoff + n.eclRecover + n.eclFx);
-  if (n.deposits === 0) n.deposits = Math.max(0, issuer.curr.otherL);
-  return n;
+  return plugCommon(issuer, notes);
 }
 
 /* ── realty ── */
@@ -261,13 +258,9 @@ export function evaluateRealtyNotes(
   ]);
 }
 
+/** Was: forced ipAdd to close P01 and devCost to close P02. Undisclosed devCost is now unable. */
 function plugRealty(issuer: Issuer, notes: NoteBooks): NoteBooks {
-  const n = plugCommon(issuer, notes);
-  const p = issuer.priorNotes;
-  const ipBeg = p?.ip ?? 0;
-  n.ipAdd += n.ip - (ipBeg + n.ipAdd + n.ipTransfer + n.ipFv - n.ipDisp);
-  n.devCost += issuer.curr.inv - (issuer.prior.inv + n.devCost - issuer.curr.cogs - n.ipTransfer);
-  return n;
+  return plugCommon(issuer, notes);
 }
 
 /* ── energy ── */
@@ -383,18 +376,14 @@ export function evaluateEnergyNotes(
   ]);
 }
 
+/** Was: forced abandonUnwind to close E02. */
 function plugEnergy(issuer: Issuer, notes: NoteBooks): NoteBooks {
-  const n = plugCommon(issuer, notes);
-  const p = issuer.priorNotes;
-  n.abandonUnwind += n.prov - ((p?.prov ?? 0) + n.provCharge + n.abandonUnwind - n.provUse);
-  return n;
+  return plugCommon(issuer, notes);
 }
 
+/** Was: forced clAdd to close the contract-liability rollforward. */
 function plugPlatform(issuer: Issuer, notes: NoteBooks): NoteBooks {
-  const n = plugCommon(issuer, notes);
-  const beg = issuer.priorNotes?.cl ?? 0;
-  n.clAdd += n.cl - (beg + n.clAdd - n.clRelease);
-  return n;
+  return plugCommon(issuer, notes);
 }
 
 /* ── platform ── */
@@ -472,7 +461,7 @@ export function evaluatePlatformNotes(
   const n = currNotes;
   const p = priorNotes;
   const floor = floorOf(curr);
-  const r0 = curr.re - prior.re - (curr.ni - curr.dividends + n.oci - n.buyback + n.nci + n.otherEq);
+  const r0 = equityGap(prior, curr, n);
   const r1 = n.cl - (p.cl + n.clAdd - n.clRelease);
   const r2 = cashGap(prior, curr, n);
   const r3 = debtGap(prior, curr, n);
@@ -600,11 +589,9 @@ export function evaluateExchangeNotes(
   ]);
 }
 
+/** Was: forced ownCash so the four cash buckets summed to the balance-sheet cash. */
 function plugExchange(issuer: Issuer, notes: NoteBooks): NoteBooks {
-  const n = plugCommon(issuer, notes);
-  const composed = n.ownCash + n.marginCash + n.clearingCash + n.asharesCash;
-  n.ownCash += issuer.curr.cash - composed;
-  return n;
+  return plugCommon(issuer, notes);
 }
 
 /* ── telco ── */
@@ -703,7 +690,7 @@ export function evaluateTelcoNotes(
   const n = currNotes;
   const p = priorNotes;
   const floor = floorOf(curr);
-  const r0 = curr.re - prior.re - (curr.ni - curr.dividends + n.oci - n.buyback + n.nci + n.otherEq);
+  const r0 = equityGap(prior, curr, n);
   const stock = curr.ppe + n.cip;
   const priorStock = prior.ppe + p.cip;
   const daNet = curr.da - n.intanAmort;
@@ -727,15 +714,9 @@ export function evaluateTelcoNotes(
   ]);
 }
 
+/** Was: derived cip from capex and forced clAdd / intanAdd to close T01–T03. */
 function plugTelco(issuer: Issuer, notes: NoteBooks): NoteBooks {
-  const n = plugCommon(issuer, notes);
-  const p = issuer.priorNotes;
-  const priorStock = issuer.prior.ppe + (p?.cip ?? 0);
-  const daNet = issuer.curr.da - n.intanAmort;
-  n.cip = priorStock + issuer.curr.capex - daNet - issuer.curr.ppe;
-  n.clAdd += n.cl - ((p?.cl ?? 0) + n.clAdd - n.clRelease);
-  n.intanAdd += n.intan - ((p?.intan ?? 0) + n.intanAdd - n.intanAmort);
-  return n;
+  return plugCommon(issuer, notes);
 }
 
 /* ── registry ── */

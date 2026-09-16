@@ -27,7 +27,7 @@ export function publicationSet(issuer: Issuer): PubCheck[] {
   const due = ye ? deadlineOf(ye) : undefined;
   const now = new Date();
   const days = due ? Math.ceil((due.getTime() - now.getTime()) / 86400000) : undefined;
-  return [
+  const checks: PubCheck[] = [
     {
       id: "P01",
       label: "中英语言对",
@@ -49,7 +49,7 @@ export function publicationSet(issuer: Issuer): PubCheck[] {
     {
       id: "P04",
       label: "年报截止",
-      status: due ? (now <= due ? "pass" : "mismatch") : "unable" as PubStatus,
+      status: due ? (now <= due ? "pass" : "mismatch") : "missing",
       note: due
         ? `${issuer.periodLabel} 截止 ${due.toISOString().slice(0, 10)}${days != null ? `（${days} 天）` : ""}`
         : "缺少期间标签。",
@@ -72,5 +72,6 @@ export function publicationSet(issuer: Issuer): PubCheck[] {
       status: "pending",
       note: "未接入澄清公告集合。",
     },
-  ].map((c) => (c.status === ("unable" as PubStatus) ? { ...c, status: "missing" as PubStatus } : c));
+  ];
+  return checks;
 }

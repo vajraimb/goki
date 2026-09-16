@@ -16,6 +16,9 @@ import { DISPOSITION_LABEL, useNotes, type Disposition } from "@/lib/goki/notes"
 import { packOf, PACK_LABEL, sectorLabel } from "@/lib/goki/packs";
 import { reconAro, reconCl, reconEcl, reconIp, reconMargin, reconNetwork, reconR03, reconR07 } from "@/lib/goki/recon";
 import { RULES, totalAssets, totalLE } from "@/lib/goki/rules";
+import { evaluateGate, VERDICT_LABEL, verdictTone, type Verdict } from "@/lib/goki/verdict";
+import { absorptionOf, vouchIssuer } from "@/lib/goki/vouch";
+import { publicationSet, type PubStatus } from "@/lib/goki/pub";
 import { SIZE_LABEL, type CompletenessScore, type Issuer, type RulePack } from "@/lib/goki/types";
 
 export const Route = createFileRoute("/issuer/$id")({ component: IssuerPage });
@@ -150,6 +153,9 @@ function IssuerPage() {
           </div>
 
           <div className="flex min-w-0 flex-col gap-4">
+            <GateBlock issuer={issuer} />
+            <VouchBlock issuer={issuer} />
+            <PubBlock issuer={issuer} />
             <section className="rounded-lg bg-paper-2 p-4 shadow-[var(--shadow-border)]">
               <h2 className="font-display text-xl">十条勾稽</h2>
               <p className="mt-1 text-xs text-ink-soft">
@@ -272,6 +278,136 @@ function IssuerPage() {
         </div>
       </div>
     </Shell>
+  );
+}
+
+function VerdictBadge({ v }: { v: Verdict }) {
+  return <Badge tone={verdictTone(v)}>{VERDICT_LABEL[v]}</Badge>;
+}
+
+/** P0 gate: the residual is the finding. Unresolved and unable block. */
+function GateBlock({ issuer }: { issuer: Issuer }) {
+  const gate = evaluateGate(issuer);
+  const open = gate.residuals.filter(
+    (r) => r.kind === "identity" && !r.skipReason && r.verdict !== "pass",
+  );
+  return (
+    <section className="rounded-lg bg-paper-2 p-4 shadow-[var(--shadow-border)]">
+      <div className="flex items-start justify-between gap-3">
+        <h2 className="font-display text-xl">映射残差门禁</h2>
+        <VerdictBadge v={gate.verdict} />
+      </div>
+      <p className="mt-1 text-xs text-ink-soft">
+        塞子已经是恒等，不写缺口。残差自己就是结论：未解释和不能评阻断放行，不全只提示缺项。容差是 n × 半刻度。
+      </p>
+      {open.length === 0 ? (
+        <p className="mt-3 text-sm text-ink-soft">所有硬恒等在披露刻度容差内自行闭合。</p>
+      ) : (
+        <ul className="mt-3 divide-y divide-rule">
+          {open.map((r) => (
+            <li key={r.ruleId} className="py-2">
+              <div className="flex items-center justify-between gap-3">
+                <span className="font-mono text-xs tabular-nums text-muted">{r.code}</span>
+                <span className="min-w-0 flex-1 truncate text-sm">{r.name}</span>
+                <VerdictBadge v={r.verdict} />
+              </div>
+              <p className="mt-1 font-mono text-xs tabular-nums text-ink-soft">
+                余额 {wan(r.leftover, 1)} · 容差 {wan(r.leftoverUb, 1)}
+              </p>
+              {r.unableReason && <p className="mt-1 text-xs text-ink-soft">{r.unableReason}</p>}
+              {r.knownMissing.length > 0 && (
+                <p className="mt-1 text-xs text-ink-soft">
+                  已披露但规则未纳入：{r.knownMissing.map((k) => k.label).join("、")}
+                </p>
+              )}
+              {r.verdict === "unresolved" && r.explainers.length > 0 && (
+                <p className="mt-1 text-xs text-muted">
+                  可能的空槽：{r.explainers.slice(0, 5).map((k) => k.label).join("、")}
+                </p>
+              )}
+            </li>
+          ))}
+        </ul>
+      )}
+    </section>
+  );
+}
+
+/** P2 vouching: main statement vs note totals. No fabricated subtotal. */
+function VouchBlock({ issuer }: { issuer: Issuer }) {
+  const checks = vouchIssuer(issuer);
+  const absorb = absorptionOf(issuer).filter((a) => a.verdict === "incomplete");
+  if (checks.length === 0 && absorb.length === 0) return null;
+  return (
+    <section className="rounded-lg bg-paper-2 p-4 shadow-[var(--shadow-border)]">
+      <h2 className="font-display text-xl">主表 vs 附注</h2>
+      <p className="mt-1 text-xs text-ink-soft">
+        主表没有对应专槽的，记不能评，不编造合计。附注能吃掉的缺口标成不全，不上升为例外。
+      </p>
+      {checks.length > 0 && (
+        <ul className="mt-3 divide-y divide-rule">
+          {checks.map((c) => (
+            <li key={c.id} className="py-2">
+              <div className="flex items-center justify-between gap-3">
+                <span className="font-mono text-xs tabular-nums text-muted">{c.id}</span>
+                <span className="min-w-0 flex-1 truncate text-sm">{c.name}</span>
+                <VerdictBadge v={c.verdict} />
+              </div>
+              <p className="mt-1 font-mono text-xs tabular-nums text-ink-soft">
+                主表 {wan(c.main, 1)} · 附注 {wan(c.notes, 1)} · 差 {wan(c.leftover, 1)}
+              </p>
+              {c.unableReason && <p className="mt-1 text-xs text-ink-soft">{c.unableReason}</p>}
+            </li>
+          ))}
+        </ul>
+      )}
+      {absorb.length > 0 && (
+        <p className="mt-3 text-xs text-ink-soft">
+          附注吸收：{absorb.map((a) => `${a.code}(${a.knownMissing.map((k) => k.label).join("/")})`).join("、")}
+        </p>
+      )}
+    </section>
+  );
+}
+
+const PUB_LABEL: Record<PubStatus, string> = {
+  pass: "通过",
+  missing: "缺件",
+  mismatch: "不一致",
+  pending: "待核",
+};
+
+function pubTone(s: PubStatus): "pass" | "review" | "exception" | "mute" {
+  if (s === "pass") return "pass";
+  if (s === "pending") return "mute";
+  if (s === "missing") return "review";
+  return "exception";
+}
+
+/** P4 release set. Files that are not wired stay 待核 and are never reconciled. */
+function PubBlock({ issuer }: { issuer: Issuer }) {
+  const checks = publicationSet(issuer);
+  return (
+    <section className="rounded-lg bg-paper-2 p-4 shadow-[var(--shadow-border)]">
+      <h2 className="font-display text-xl">发布集合</h2>
+      <p className="mt-1 text-xs text-ink-soft">
+        中英对、ESG、ESS 标题、截止倒计时。文件没接入的保持待核，不对账，也不算通过。
+      </p>
+      <ul className="mt-3 divide-y divide-rule">
+        {checks.map((c) => (
+          <li key={c.id} className="flex items-start justify-between gap-3 py-2">
+            <div className="min-w-0">
+              <p className="text-sm">
+                <span className="font-mono text-xs tabular-nums text-muted">{c.id}</span> {c.label}
+              </p>
+              <p className="mt-0.5 text-xs text-ink-soft">{c.note}</p>
+            </div>
+            <Badge tone={pubTone(c.status)}>{PUB_LABEL[c.status]}</Badge>
+          </li>
+        ))}
+      </ul>
+      <p className="mt-3 text-xs text-muted">不构成鉴证意见。</p>
+    </section>
   );
 }
 
