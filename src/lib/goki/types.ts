@@ -115,6 +115,8 @@ export interface Issuer {
   currency?: "HKD" | "RMB" | "USD";
   periodLabel?: string;
   unitLabel?: string;
+  /** Disclosed tick of the filing. Gate rounding bound is n × half this tick. */
+  sourceScale?: "unit" | "thousand" | "million" | "yi";
   caveats?: string[];
   priorNotes?: NoteBooks;
   currNotes?: NoteBooks;
@@ -124,11 +126,16 @@ export interface Issuer {
 /** Note-level rollforward lines. Amounts in 万元. Stocks are period-end. */
 export interface NoteBooks {
   oci: number;
+  tci: number;
   buyback: number;
   sbp: number;
   nci: number;
   otherEq: number;
+  ownerTx: number;
+  eqTransfer: number;
   ppeAdd: number;
+  ppeAcq: number;
+  ppeHfs: number;
   ppeCip: number;
   ppeDisp: number;
   ppeImpair: number;
@@ -191,6 +198,9 @@ export interface RuleDef {
   strict: boolean;
   formula: string;
   explain: string;
+  effectiveFrom?: string;
+  appliesIf?: string;
+  authority?: string;
 }
 
 export interface RuleResult {
@@ -217,8 +227,12 @@ export interface ScoredIssuer {
   cashResidual: number;
   attribution: { name: string; value: number }[];
   band: "exception" | "review" | "pass";
+  verdict?: Verdict;
+  advisoryBand?: "exception" | "review" | "pass";
   maxRel?: number;
 }
+
+export type Verdict = "pass" | "incomplete" | "unresolved" | "unable";
 
 export interface CloserScore {
   issuer: Issuer;
