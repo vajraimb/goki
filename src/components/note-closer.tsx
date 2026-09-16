@@ -60,7 +60,7 @@ export function NoteCloser({ issuer }: { issuer: Issuer }) {
       <p className="mt-1 text-xs leading-relaxed text-ink-soft">
         {pack === "bank"
           ? `截断式最大残差 ${pct(truncatedMax, 1)}。填进 ECL、贷款总额、存款之后，B01/B02 应收口。贷存比和覆盖率是分析性，不开口。`
-          : `截断式最大残差 ${pct(truncatedMax, 1)}。把 OCI、回购、处置、在建填进附注，完整恒等应收口。闭合头只看填完之后还裂的口。`}
+          : `截断式最大残差 ${pct(truncatedMax, 1)}。不再把缺口记入其他权益/处置/汇兑。闭合头 p(开口) 是咨询，不进门禁。`}
       </p>
 
       <ol className="mt-3 divide-y divide-rule">

@@ -5,6 +5,7 @@ const NAV = [
   { to: "/", label: "队列" },
   { to: "/closer", label: "闭合" },
   { to: "/map", label: "映射" },
+  { to: "/work", label: "底稿" },
   { to: "/models", label: "模型" },
   { to: "/rules", label: "规则" },
   { to: "/lab", label: "实验室" },
@@ -49,6 +50,11 @@ export function Shell({ children }: { children: React.ReactNode }) {
         </div>
       </header>
       <div className="mx-auto min-w-0 max-w-6xl px-4 py-6 pb-16 sm:py-8">{children}</div>
+      <footer className="border-t border-rule px-4 py-4">
+        <p className="mx-auto max-w-6xl text-xs leading-relaxed text-muted">
+          工作底稿 · 不构成鉴证意见。门禁只看硬恒等残差与映射缺项；小模型是咨询，不进阻断路径。
+        </p>
+      </footer>
     </div>
   );
 }

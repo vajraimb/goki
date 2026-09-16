@@ -1,4 +1,4 @@
-import { EMPTY_NOTES, mergeNotes } from "./note-rules";
+import { EMPTY_NOTES, equityGap, mergeNotes, ppeGap } from "./note-rules";
 import { PACK_SPECS } from "./pack-defs";
 import { evaluateRules, RULES } from "./rules";
 import type {
@@ -45,13 +45,23 @@ export function evaluateMainRules(issuer: Issuer): RuleResult[] {
   return rules.map((r, i) => {
     const def = RULES[i]!;
     const out: RuleResult = { ...r, kind: def.kind };
+    const notes = mergeNotes(issuer.currNotes);
+    if (r.ruleId === "r2") {
+      const complete = equityGap(issuer.prior, issuer.curr, notes);
+      out.residual = complete;
+      out.scale = Math.max(Math.abs(issuer.curr.ni), 10);
+      out.rel = complete / out.scale;
+    }
+    if (r.ruleId === "r6" && !spec.skipMain.r6) {
+      const complete = ppeGap(issuer.prior, issuer.curr, notes);
+      out.residual = complete;
+      out.scale = Math.max(issuer.curr.ppe, 10);
+      out.rel = complete / out.scale;
+    }
     const reason = spec.skipMain[r.ruleId];
     if (reason) {
       out.skipped = true;
       out.skipReason = reason;
-      out.residual = 0;
-      out.rel = 0;
-      out.yoy = 0;
     }
     return out;
   });
