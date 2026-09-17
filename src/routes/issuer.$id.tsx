@@ -19,6 +19,7 @@ import { RULES, totalAssets, totalLE } from "@/lib/goki/rules";
 import { evaluateGate, VERDICT_LABEL, verdictTone, type Verdict } from "@/lib/goki/verdict";
 import { absorptionOf, vouchIssuer } from "@/lib/goki/vouch";
 import { publicationSet, type PubStatus } from "@/lib/goki/pub";
+import { FILING_LANG_LABEL } from "@/lib/goki/filings";
 import { SIZE_LABEL, type CompletenessScore, type Issuer, type RulePack } from "@/lib/goki/types";
 
 export const Route = createFileRoute("/issuer/$id")({ component: IssuerPage });
@@ -387,22 +388,53 @@ function pubTone(s: PubStatus): "pass" | "review" | "exception" | "mute" {
 /** P4 release set. Files that are not wired stay 待核 and are never reconciled. */
 function PubBlock({ issuer }: { issuer: Issuer }) {
   const checks = publicationSet(issuer);
+  const nPending = checks.filter((c) => c.status === "pending").length;
+  const nWired = checks.filter((c) => c.status !== "pending").length;
   return (
     <section className="rounded-lg bg-paper-2 p-4 shadow-[var(--shadow-border)]">
       <h2 className="font-display text-xl">发布集合</h2>
       <p className="mt-1 text-xs text-ink-soft">
-        中英对、ESG、ESS 标题、截止倒计时。文件没接入的保持待核，不对账，也不算通过。
+        中英对、ESG、ESS 标题、截止、业绩公告。已接 {nWired} 条可对账，{nPending} 条仍待核。没文件的不算通过。
       </p>
       <ul className="mt-3 divide-y divide-rule">
         {checks.map((c) => (
-          <li key={c.id} className="flex items-start justify-between gap-3 py-2">
-            <div className="min-w-0">
-              <p className="text-sm">
-                <span className="font-mono text-xs tabular-nums text-muted">{c.id}</span> {c.label}
-              </p>
-              <p className="mt-0.5 text-xs text-ink-soft">{c.note}</p>
+          <li key={c.id} className="py-2">
+            <div className="flex items-start justify-between gap-3">
+              <div className="min-w-0">
+                <p className="text-sm">
+                  <span className="font-mono text-xs tabular-nums text-muted">{c.id}</span> {c.label}
+                </p>
+                <p className="mt-0.5 text-xs text-ink-soft">{c.note}</p>
+              </div>
+              <Badge tone={pubTone(c.status)}>{PUB_LABEL[c.status]}</Badge>
             </div>
-            <Badge tone={pubTone(c.status)}>{PUB_LABEL[c.status]}</Badge>
+            {c.files.length > 0 ? (
+              <ul className="mt-2 space-y-1">
+                {c.files.map((f, i) => (
+                  <li key={`${c.id}-${f.kind}-${f.lang}-${f.filename || f.essTitle}-${i}`} className="text-xs text-muted">
+                    <span className="font-mono tabular-nums">{FILING_LANG_LABEL[f.lang]}</span>
+                    {f.published ? (
+                      <>
+                        <span className="mx-1.5 text-rule">·</span>
+                        <span className="tabular-nums">{f.published}</span>
+                      </>
+                    ) : null}
+                    {f.url ? (
+                      <a
+                        href={f.url}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="ml-2 text-forest underline-offset-2 hover:underline"
+                      >
+                        {f.essTitle}
+                      </a>
+                    ) : (
+                      <span className="ml-2">{f.essTitle}</span>
+                    )}
+                  </li>
+                ))}
+              </ul>
+            ) : null}
           </li>
         ))}
       </ul>
