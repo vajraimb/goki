@@ -3,7 +3,8 @@ import { evaluateGate, type MappingResidual, type Verdict } from "../verdict";
 import { publicationSet, type PubCheck } from "../pub";
 import { vouchIssuer } from "../vouch";
 import { filingsFor, issuerYearEnd, FILING_KIND_LABEL } from "../filings";
-import { evaluateMainRules, packOf, PACK_LABEL } from "../packs";
+import { evaluateMainRules, noteRulesFor, packOf, PACK_LABEL } from "../packs";
+import { classifyGaps } from "../gaps";
 import { bandIssuer } from "../materiality-net";
 import { totalAssets, totalLE } from "../rules";
 import { ctxOf } from "../amount";
@@ -182,7 +183,10 @@ export const COMMANDS: CommandTable = {
     if (target === "notes") {
       const vouch = vouchOf(rt);
       const gate = gateOf(rt);
-      const noteRows = gate.residuals.filter((r) => r.ruleId.length === 2 && r.kind === "identity" && !r.skipReason);
+      const noteIds = noteRulesFor(packOf(rt.issuer)).map((d) => d.id);
+      const noteRows = gate.residuals.filter(
+        (r) => noteIds.includes(r.ruleId) && r.kind === "identity" && !r.skipReason,
+      );
       let status: StepStatus = "pass";
       for (const v of vouch) status = worstStatus(status, verdictStatus(v.verdict));
       for (const r of noteRows) status = worstStatus(status, verdictStatus(r.verdict));
@@ -241,6 +245,39 @@ export const COMMANDS: CommandTable = {
       compared: { open: open.length, identities: rows.length },
     });
     refreshCounts(rt);
+  },
+
+  classify(rt, args, cmd) {
+    if (args[0] !== "gaps") throw new TclRuntimeError(cmd.line, "classify gaps is the only registered target");
+    const report = classifyGaps(rt.issuer);
+    rt.vars.set("open", String(report.open));
+    rt.vars.set("unmapped", String(report.unmapped));
+    rt.vars.set("unwired", String(report.unwired));
+    rt.vars.set("formula", String(report.formula));
+    const bits = [
+      report.open ? `真开口 ${report.open}` : null,
+      report.unmapped ? `映射未齐 ${report.unmapped}` : null,
+      report.formula ? `公式截断 ${report.formula}` : null,
+      report.schema ? `无槽 ${report.schema}` : null,
+      report.unwired ? `未接线 ${report.unwired}` : null,
+      report.file ? `披露 ${report.file}` : null,
+    ].filter(Boolean);
+    addStep(rt, {
+      line: cmd.line,
+      cmd: "classify",
+      args,
+      impl: "classifyGaps",
+      status: report.blocksPublish ? "fail" : report.projectIncomplete ? "pending" : "pass",
+      note: bits.length ? bits.join(" · ") : "无开口",
+      sources: [{ kind: "gate", label: "gap origin", ticker: rt.issuer.ticker }],
+      compared: {
+        open: report.open,
+        unmapped: report.unmapped,
+        formula: report.formula,
+        unwired: report.unwired,
+        file: report.file,
+      },
+    });
   },
 
   collect(rt, args, cmd) {

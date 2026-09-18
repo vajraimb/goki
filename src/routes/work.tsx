@@ -36,7 +36,12 @@ function WorkPage() {
       <p className="font-mono text-xs tracking-[0.18em] text-muted uppercase">Working paper</p>
       <h1 className="mt-1 font-display text-4xl tracking-tight sm:text-5xl">底稿签核</h1>
       <p className="mt-3 max-w-2xl text-sm leading-relaxed text-ink-soft">
-        冻结当前规则配置与映射，生成 Run 和 Manifest。编制和复核必须是两个人。HKFRS 18 对 FY2025 不启用。
+        冻结当前规则配置与映射，生成 Run 和 Manifest。编制和复核必须是两个人。HKFRS 18 对 FY2025 不启用。公司秘书发刊前用发刊台，底稿冻结是工坊动作。
+      </p>
+      <p className="mt-2">
+        <Link to="/" className="text-sm text-forest underline-offset-2 hover:underline">
+          返回发刊台
+        </Link>
       </p>
 
       <div className="mt-6 grid gap-3 sm:grid-cols-2">

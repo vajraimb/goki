@@ -138,6 +138,10 @@ function ProgramPage() {
           </Link>
           <span className="mx-1.5 text-rule">·</span>
           {issuer.periodLabel ?? "FY2025"}
+          <span className="mx-1.5 text-rule">·</span>
+          <Link to="/" search={{ ticker: issuer.ticker }} className="text-forest underline-offset-2 hover:underline">
+            发刊台
+          </Link>
         </p>
       ) : null}
 

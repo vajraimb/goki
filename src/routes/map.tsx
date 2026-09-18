@@ -26,7 +26,12 @@ import {
 import { PACK_LABEL } from "@/lib/goki/packs";
 import type { Issuer, RulePack } from "@/lib/goki/types";
 
-export const Route = createFileRoute("/map")({ component: MapPage });
+export const Route = createFileRoute("/map")({
+  validateSearch: (raw: Record<string, unknown>) => ({
+    ticker: typeof raw.ticker === "string" ? raw.ticker : undefined,
+  }),
+  component: MapPage,
+});
 
 const SECTION_LABEL: Record<MapSection, string> = {
   bs: "资产/负债",
@@ -51,7 +56,14 @@ type Draft = {
   on: boolean;
 };
 
+function tickerParam(search: { ticker?: string }): string | undefined {
+  if (search.ticker) return search.ticker;
+  if (typeof window === "undefined") return undefined;
+  return new URLSearchParams(window.location.search).get("ticker") ?? undefined;
+}
+
 function MapPage() {
+  const search = Route.useSearch();
   const writes = useMapIntake((s) => s.writes);
   const put = useMapIntake((s) => s.put);
   const putMany = useMapIntake((s) => s.putMany);
@@ -61,7 +73,7 @@ function MapPage() {
   const [ready, setReady] = useState(false);
   const [acc, setAcc] = useState({ syn: 0, hk: 0, params: 0, checksum: "", ms: 0, inDim: 0 });
   const [rows, setRows] = useState<(MapLine & { guess: MapGuess })[]>([]);
-  const [ticker, setTicker] = useState("00016");
+  const [ticker, setTicker] = useState(() => tickerParam(search) || "00016");
   const [paste, setPaste] = useState(SAMPLE_PASTE);
   const [drafts, setDrafts] = useState<Draft[]>([]);
   const [label, setLabel] = useState("Additions to investment properties");
@@ -72,6 +84,11 @@ function MapPage() {
 
   const issuer = issuers.find((i) => i.ticker === ticker);
   const pack: RulePack = issuer?.pack ?? "generic";
+
+  useEffect(() => {
+    const t = tickerParam(search);
+    if (t && t !== ticker) setTicker(t);
+  }, [search.ticker, ticker]);
 
   useEffect(() => {
     const mdl = getMapNet();

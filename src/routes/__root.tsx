@@ -15,7 +15,7 @@ export const Route = createRootRoute({
       { name: "theme-color", content: "#2A4A40" },
       {
         name: "description",
-        content: "勾稽底稿 — OCANNL 财务报表勾稽残差审计工作底稿",
+        content: "发刊核验 — 公司秘书在年报提交前的最后核对",
       },
     ],
     links: [

@@ -7,6 +7,7 @@ import { checksumShort, compactP, pct } from "@/lib/goki/format";
 import { buildHkIssuers } from "@/lib/goki/hk-bluechips";
 import { liveIssuers, useMapIntake } from "@/lib/goki/map-intake";
 import { ensureAllModels, estimatesFor, type ModelCard } from "@/lib/goki/models";
+import { auditModelsLive } from "@/lib/goki/model-audit";
 import { packOf, PACK_LABEL } from "@/lib/goki/packs";
 import type { CompletenessScore, EstimateScore, PackGuess } from "@/lib/goki/types";
 
@@ -15,6 +16,7 @@ export const Route = createFileRoute("/models")({ component: ModelsPage });
 function ModelsPage() {
   const writes = useMapIntake((s) => s.writes);
   const [cards, setCards] = useState<ModelCard[] | null>(null);
+  const [live, setLive] = useState<ReturnType<typeof auditModelsLive> | null>(null);
   const [rows, setRows] = useState<
     {
       id: string;
@@ -33,6 +35,7 @@ function ModelsPage() {
   useEffect(() => {
     const cat = ensureAllModels();
     setCards(cat.cards);
+    setLive(auditModelsLive());
     const issuers = liveIssuers(buildHkIssuers());
     setRows(
       issuers.map((iss) => {
@@ -74,18 +77,29 @@ function ModelsPage() {
           </p>
           <h1 className="mt-1 font-display text-4xl tracking-tight sm:text-5xl">小模型工作链</h1>
           <p className="mt-3 max-w-2xl text-sm leading-relaxed text-ink-soft">
-            年报审核拆成六个环节。每个小网络独立训练，合成语料固定种子，港股实报只做推断。模型不读年报
-            PDF。下面是工作链图，也可
-            <a href="/goki-work-chain.pdf" className="mx-1 text-forest underline underline-offset-2">
-              打开 PDF
-            </a>
-            或去
-            <Link to="/map" className="ml-1 text-forest underline underline-offset-2">
-              科目映射
-            </Link>
-            。
+            合成语料上的准确率不是可用性。发刊台只采用在十一条实报上过关的模型。其余留在工坊，不填数、不进阻断。
           </p>
         </div>
+
+        {live ? (
+          <section className="rounded-lg bg-paper-2 p-4 shadow-[var(--shadow-border)]">
+            <h2 className="font-display text-2xl">实报可用性</h2>
+            <ul className="mt-3 divide-y divide-rule">
+              {live.cards.map((c) => (
+                <li key={c.id} className="flex flex-col gap-1 py-3 sm:flex-row sm:items-baseline sm:justify-between">
+                  <div>
+                    <p className="text-sm font-medium">{c.name}</p>
+                    <p className="mt-1 text-xs leading-relaxed text-ink-soft">{c.why}</p>
+                    <p className="mt-1 font-mono text-xs text-muted">
+                      {c.metricLabel} {c.detail}
+                    </p>
+                  </div>
+                  <Badge tone={c.usable ? "pass" : "mute"}>{c.usable ? "可用" : "不用"}</Badge>
+                </li>
+              ))}
+            </ul>
+          </section>
+        ) : null}
 
         <ol className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
           {[

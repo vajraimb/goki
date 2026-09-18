@@ -31,6 +31,7 @@ describe("Tcl subset", () => {
       "extract",
       "parallel",
       "reconcile",
+      "classify",
       "collect",
       "if",
       "judge",

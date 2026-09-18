@@ -16,8 +16,10 @@ import { Route as LabRouteImport } from './routes/lab'
 import { Route as MapRouteImport } from './routes/map'
 import { Route as ModelsRouteImport } from './routes/models'
 import { Route as ProgramRouteImport } from './routes/program'
+import { Route as QueueRouteImport } from './routes/queue'
 import { Route as RulesRouteImport } from './routes/rules'
 import { Route as WorkRouteImport } from './routes/work'
+import { Route as WorkshopRouteImport } from './routes/workshop'
 import { Route as IssuerIdRouteImport } from './routes/issuer.$id'
 
 const IndexRoute = IndexRouteImport.update({
@@ -55,6 +57,11 @@ const ProgramRoute = ProgramRouteImport.update({
   path: '/program',
   getParentRoute: () => rootRouteImport,
 } as any)
+const QueueRoute = QueueRouteImport.update({
+  id: '/queue',
+  path: '/queue',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const RulesRoute = RulesRouteImport.update({
   id: '/rules',
   path: '/rules',
@@ -63,6 +70,11 @@ const RulesRoute = RulesRouteImport.update({
 const WorkRoute = WorkRouteImport.update({
   id: '/work',
   path: '/work',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const WorkshopRoute = WorkshopRouteImport.update({
+  id: '/workshop',
+  path: '/workshop',
   getParentRoute: () => rootRouteImport,
 } as any)
 const IssuerIdRoute = IssuerIdRouteImport.update({
@@ -79,8 +91,10 @@ export interface FileRoutesByFullPath {
   '/map': typeof MapRoute
   '/models': typeof ModelsRoute
   '/program': typeof ProgramRoute
+  '/queue': typeof QueueRoute
   '/rules': typeof RulesRoute
   '/work': typeof WorkRoute
+  '/workshop': typeof WorkshopRoute
   '/issuer/$id': typeof IssuerIdRoute
 }
 export interface FileRoutesByTo {
@@ -91,8 +105,10 @@ export interface FileRoutesByTo {
   '/map': typeof MapRoute
   '/models': typeof ModelsRoute
   '/program': typeof ProgramRoute
+  '/queue': typeof QueueRoute
   '/rules': typeof RulesRoute
   '/work': typeof WorkRoute
+  '/workshop': typeof WorkshopRoute
   '/issuer/$id': typeof IssuerIdRoute
 }
 export interface FileRoutesById {
@@ -104,8 +120,10 @@ export interface FileRoutesById {
   '/map': typeof MapRoute
   '/models': typeof ModelsRoute
   '/program': typeof ProgramRoute
+  '/queue': typeof QueueRoute
   '/rules': typeof RulesRoute
   '/work': typeof WorkRoute
+  '/workshop': typeof WorkshopRoute
   '/issuer/$id': typeof IssuerIdRoute
 }
 export interface FileRouteTypes {
@@ -118,8 +136,10 @@ export interface FileRouteTypes {
     | '/map'
     | '/models'
     | '/program'
+    | '/queue'
     | '/rules'
     | '/work'
+    | '/workshop'
     | '/issuer/$id'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -130,8 +150,10 @@ export interface FileRouteTypes {
     | '/map'
     | '/models'
     | '/program'
+    | '/queue'
     | '/rules'
     | '/work'
+    | '/workshop'
     | '/issuer/$id'
   id:
     | '__root__'
@@ -142,8 +164,10 @@ export interface FileRouteTypes {
     | '/map'
     | '/models'
     | '/program'
+    | '/queue'
     | '/rules'
     | '/work'
+    | '/workshop'
     | '/issuer/$id'
   fileRoutesById: FileRoutesById
 }
@@ -155,8 +179,10 @@ export interface RootRouteChildren {
   MapRoute: typeof MapRoute
   ModelsRoute: typeof ModelsRoute
   ProgramRoute: typeof ProgramRoute
+  QueueRoute: typeof QueueRoute
   RulesRoute: typeof RulesRoute
   WorkRoute: typeof WorkRoute
+  WorkshopRoute: typeof WorkshopRoute
   IssuerIdRoute: typeof IssuerIdRoute
 }
 
@@ -211,6 +237,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ProgramRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/queue': {
+      id: '/queue'
+      path: '/queue'
+      fullPath: '/queue'
+      preLoaderRoute: typeof QueueRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/rules': {
       id: '/rules'
       path: '/rules'
@@ -223,6 +256,13 @@ declare module '@tanstack/react-router' {
       path: '/work'
       fullPath: '/work'
       preLoaderRoute: typeof WorkRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/workshop': {
+      id: '/workshop'
+      path: '/workshop'
+      fullPath: '/workshop'
+      preLoaderRoute: typeof WorkshopRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/issuer/$id': {
@@ -243,8 +283,10 @@ const rootRouteChildren: RootRouteChildren = {
   MapRoute: MapRoute,
   ModelsRoute: ModelsRoute,
   ProgramRoute: ProgramRoute,
+  QueueRoute: QueueRoute,
   RulesRoute: RulesRoute,
   WorkRoute: WorkRoute,
+  WorkshopRoute: WorkshopRoute,
   IssuerIdRoute: IssuerIdRoute,
 }
 export const routeTree = rootRouteImport

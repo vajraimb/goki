@@ -37,7 +37,7 @@ function IssuerPage() {
     return (
       <Shell>
         <p className="text-ink-soft">未找到发行人。</p>
-        <Link to="/" className="mt-4 inline-block text-sm text-forest underline">
+        <Link to="/queue" className="mt-4 inline-block text-sm text-forest underline">
           返回队列
         </Link>
       </Shell>
@@ -56,7 +56,11 @@ function IssuerPage() {
     <Shell>
       <div className="flex flex-col gap-6">
         <div>
-          <Link to="/" className="text-sm text-muted hover:text-ink">
+          <Link to="/" search={{ ticker: issuer.ticker }} className="text-sm text-muted hover:text-ink">
+            发刊台
+          </Link>
+          <span className="mx-2 text-rule">·</span>
+          <Link to="/queue" className="text-sm text-muted hover:text-ink">
             队列
           </Link>
           <span className="mx-2 text-rule">·</span>

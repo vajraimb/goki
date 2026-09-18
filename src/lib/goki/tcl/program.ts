@@ -1,10 +1,11 @@
 /** Fixed annual-report audit program. Planner may bind $specialist only. */
-export const PROGRAM_ID = "annual-report@1";
+export const PROGRAM_ID = "annual-report@2";
 
 export const PROGRAM_TCL = `# GOKI annual-report audit program
-# version 1
+# version 2
 # Core path is fixed. Planner binds $specialist only.
 # Commands dispatch to existing engines. This file does not compute identities.
+# v2: classify leftover origin so mapping gaps are not labelled as issuer errors.
 
 annual_report {
     extract mapping
@@ -19,6 +20,7 @@ annual_report {
     }
 
     reconcile identities
+    classify gaps
     collect evidence
 
     if {$anomalies > 0} {
@@ -44,6 +46,7 @@ export const PROGRAM_PRIMITIVES = [
   "verify",
   "compare",
   "reconcile",
+  "classify",
   "evidence",
   "delegate",
   "parallel",
