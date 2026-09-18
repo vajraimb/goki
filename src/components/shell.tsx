@@ -6,6 +6,7 @@ const NAV = [
   { to: "/closer", label: "闭合" },
   { to: "/map", label: "映射" },
   { to: "/work", label: "底稿" },
+  { to: "/program", label: "程序" },
   { to: "/models", label: "模型" },
   { to: "/rules", label: "规则" },
   { to: "/lab", label: "实验室" },

@@ -15,6 +15,7 @@ import { Route as HkRouteImport } from './routes/hk'
 import { Route as LabRouteImport } from './routes/lab'
 import { Route as MapRouteImport } from './routes/map'
 import { Route as ModelsRouteImport } from './routes/models'
+import { Route as ProgramRouteImport } from './routes/program'
 import { Route as RulesRouteImport } from './routes/rules'
 import { Route as WorkRouteImport } from './routes/work'
 import { Route as IssuerIdRouteImport } from './routes/issuer.$id'
@@ -49,6 +50,11 @@ const ModelsRoute = ModelsRouteImport.update({
   path: '/models',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ProgramRoute = ProgramRouteImport.update({
+  id: '/program',
+  path: '/program',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const RulesRoute = RulesRouteImport.update({
   id: '/rules',
   path: '/rules',
@@ -72,6 +78,7 @@ export interface FileRoutesByFullPath {
   '/lab': typeof LabRoute
   '/map': typeof MapRoute
   '/models': typeof ModelsRoute
+  '/program': typeof ProgramRoute
   '/rules': typeof RulesRoute
   '/work': typeof WorkRoute
   '/issuer/$id': typeof IssuerIdRoute
@@ -83,6 +90,7 @@ export interface FileRoutesByTo {
   '/lab': typeof LabRoute
   '/map': typeof MapRoute
   '/models': typeof ModelsRoute
+  '/program': typeof ProgramRoute
   '/rules': typeof RulesRoute
   '/work': typeof WorkRoute
   '/issuer/$id': typeof IssuerIdRoute
@@ -95,6 +103,7 @@ export interface FileRoutesById {
   '/lab': typeof LabRoute
   '/map': typeof MapRoute
   '/models': typeof ModelsRoute
+  '/program': typeof ProgramRoute
   '/rules': typeof RulesRoute
   '/work': typeof WorkRoute
   '/issuer/$id': typeof IssuerIdRoute
@@ -108,6 +117,7 @@ export interface FileRouteTypes {
     | '/lab'
     | '/map'
     | '/models'
+    | '/program'
     | '/rules'
     | '/work'
     | '/issuer/$id'
@@ -119,6 +129,7 @@ export interface FileRouteTypes {
     | '/lab'
     | '/map'
     | '/models'
+    | '/program'
     | '/rules'
     | '/work'
     | '/issuer/$id'
@@ -130,6 +141,7 @@ export interface FileRouteTypes {
     | '/lab'
     | '/map'
     | '/models'
+    | '/program'
     | '/rules'
     | '/work'
     | '/issuer/$id'
@@ -142,6 +154,7 @@ export interface RootRouteChildren {
   LabRoute: typeof LabRoute
   MapRoute: typeof MapRoute
   ModelsRoute: typeof ModelsRoute
+  ProgramRoute: typeof ProgramRoute
   RulesRoute: typeof RulesRoute
   WorkRoute: typeof WorkRoute
   IssuerIdRoute: typeof IssuerIdRoute
@@ -191,6 +204,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ModelsRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/program': {
+      id: '/program'
+      path: '/program'
+      fullPath: '/program'
+      preLoaderRoute: typeof ProgramRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/rules': {
       id: '/rules'
       path: '/rules'
@@ -222,6 +242,7 @@ const rootRouteChildren: RootRouteChildren = {
   LabRoute: LabRoute,
   MapRoute: MapRoute,
   ModelsRoute: ModelsRoute,
+  ProgramRoute: ProgramRoute,
   RulesRoute: RulesRoute,
   WorkRoute: WorkRoute,
   IssuerIdRoute: IssuerIdRoute,

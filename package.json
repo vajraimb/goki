@@ -16,8 +16,9 @@
     "preview:stop": "node scripts/preview.mjs stop",
     "typecheck": "tsc --noEmit",
     "smoke:gate": "node --experimental-strip-types --import ./scripts/ts-ext.mjs --test scripts/goki-gate-smoke.mjs",
+    "smoke:tcl": "node --experimental-strip-types --import ./scripts/ts-ext.mjs --test scripts/goki-tcl-smoke.mjs",
     "check:auth": "node scripts/check-auth-invariant.mjs",
-    "test": "npm run smoke:gate && node --test 'scripts/**/*.test.mjs' && node --experimental-strip-types --test src/lib/app-data/app-data.test.ts src/lib/app-data/readiness-schedule.test.ts src/lib/auth/gate-identity.test.ts src/lib/auth/sign-in-gate.test.ts",
+    "test": "npm run smoke:gate && npm run smoke:tcl && node --test 'scripts/**/*.test.mjs' && node --experimental-strip-types --test src/lib/app-data/app-data.test.ts src/lib/app-data/readiness-schedule.test.ts src/lib/auth/gate-identity.test.ts src/lib/auth/sign-in-gate.test.ts",
     "lint": "eslint .",
     "format": "prettier --write ."
   },

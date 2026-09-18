@@ -59,6 +59,10 @@ function IssuerPage() {
           <Link to="/" className="text-sm text-muted hover:text-ink">
             队列
           </Link>
+          <span className="mx-2 text-rule">·</span>
+          <a href={`/program?ticker=${encodeURIComponent(issuer.ticker)}`} className="text-sm text-muted hover:text-ink">
+            程序
+          </a>
           <div className="mt-3 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
             <div>
               <p className="font-mono text-xs tabular-nums text-muted">{issuer.ticker}</p>
