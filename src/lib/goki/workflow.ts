@@ -3,13 +3,14 @@ import { classifyGaps, type Gap, type GapOrigin, type GapReport } from "./gaps";
 import { publicationSet } from "./pub";
 import type { Issuer } from "./types";
 
-export type DeptId = "reporting" | "ir" | "cosec" | "policy";
+export type DeptId = "reporting" | "ir" | "cosec" | "policy" | "sustainability";
 
 export const DEPT: Record<DeptId, { label: string; owns: string }> = {
   reporting: { label: "财务报告", owns: "主表、附注映射与勾稽。改完回核验台再核。" },
   ir: { label: "投资者关系", owns: "年报、ESG、业绩公告。缺文件或中英不对要补。" },
   cosec: { label: "公司秘书", owns: "披露截止、澄清公告、发刊签核。" },
   policy: { label: "会计政策", owns: "简化公式与主表槽位。不是发行人账错。" },
+  sustainability: { label: "可持续发展", owns: "董事会声明、气候与社会定量、独立鉴证。打开 ESG 映射，不编造排放。" },
 };
 
 export interface GapLink {
@@ -59,10 +60,6 @@ export function deptOf(origin: GapOrigin, id: string): DeptId {
   return "reporting";
 }
 
-function quoteHref(ticker: string): string {
-  return `https://www.hkex.com.hk/Market-Data/Securities-Prices/Equities/Equities-Quote?sym=${Number(ticker)}&sc_lang=zh`;
-}
-
 function fileLinks(issuer: Issuer, gapId: string): GapLink[] {
   const pub = publicationSet(issuer);
   const check = pub.find((c) => c.id === gapId);
@@ -105,7 +102,6 @@ export function linksFor(issuer: Issuer, gap: Gap): GapLink[] {
     const files = fileLinks(issuer, gap.id);
     return [
       ...files,
-      { label: "港交所报价", href: quoteHref(t), external: true },
       { label: "看残差", href: `/issuer/hk-${t}` },
     ];
   }

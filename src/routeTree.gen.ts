@@ -11,6 +11,7 @@
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as CloserRouteImport } from './routes/closer'
+import { Route as EsgRouteImport } from './routes/esg'
 import { Route as HkRouteImport } from './routes/hk'
 import { Route as LabRouteImport } from './routes/lab'
 import { Route as MapRouteImport } from './routes/map'
@@ -18,6 +19,7 @@ import { Route as ModelsRouteImport } from './routes/models'
 import { Route as ProgramRouteImport } from './routes/program'
 import { Route as QueueRouteImport } from './routes/queue'
 import { Route as RulesRouteImport } from './routes/rules'
+import { Route as TrainRouteImport } from './routes/train'
 import { Route as WorkRouteImport } from './routes/work'
 import { Route as WorkshopRouteImport } from './routes/workshop'
 import { Route as IssuerIdRouteImport } from './routes/issuer.$id'
@@ -30,6 +32,11 @@ const IndexRoute = IndexRouteImport.update({
 const CloserRoute = CloserRouteImport.update({
   id: '/closer',
   path: '/closer',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const EsgRoute = EsgRouteImport.update({
+  id: '/esg',
+  path: '/esg',
   getParentRoute: () => rootRouteImport,
 } as any)
 const HkRoute = HkRouteImport.update({
@@ -67,6 +74,11 @@ const RulesRoute = RulesRouteImport.update({
   path: '/rules',
   getParentRoute: () => rootRouteImport,
 } as any)
+const TrainRoute = TrainRouteImport.update({
+  id: '/train',
+  path: '/train',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const WorkRoute = WorkRouteImport.update({
   id: '/work',
   path: '/work',
@@ -86,6 +98,7 @@ const IssuerIdRoute = IssuerIdRouteImport.update({
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/closer': typeof CloserRoute
+  '/esg': typeof EsgRoute
   '/hk': typeof HkRoute
   '/lab': typeof LabRoute
   '/map': typeof MapRoute
@@ -93,6 +106,7 @@ export interface FileRoutesByFullPath {
   '/program': typeof ProgramRoute
   '/queue': typeof QueueRoute
   '/rules': typeof RulesRoute
+  '/train': typeof TrainRoute
   '/work': typeof WorkRoute
   '/workshop': typeof WorkshopRoute
   '/issuer/$id': typeof IssuerIdRoute
@@ -100,6 +114,7 @@ export interface FileRoutesByFullPath {
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/closer': typeof CloserRoute
+  '/esg': typeof EsgRoute
   '/hk': typeof HkRoute
   '/lab': typeof LabRoute
   '/map': typeof MapRoute
@@ -107,6 +122,7 @@ export interface FileRoutesByTo {
   '/program': typeof ProgramRoute
   '/queue': typeof QueueRoute
   '/rules': typeof RulesRoute
+  '/train': typeof TrainRoute
   '/work': typeof WorkRoute
   '/workshop': typeof WorkshopRoute
   '/issuer/$id': typeof IssuerIdRoute
@@ -115,6 +131,7 @@ export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/closer': typeof CloserRoute
+  '/esg': typeof EsgRoute
   '/hk': typeof HkRoute
   '/lab': typeof LabRoute
   '/map': typeof MapRoute
@@ -122,6 +139,7 @@ export interface FileRoutesById {
   '/program': typeof ProgramRoute
   '/queue': typeof QueueRoute
   '/rules': typeof RulesRoute
+  '/train': typeof TrainRoute
   '/work': typeof WorkRoute
   '/workshop': typeof WorkshopRoute
   '/issuer/$id': typeof IssuerIdRoute
@@ -131,6 +149,7 @@ export interface FileRouteTypes {
   fullPaths:
     | '/'
     | '/closer'
+    | '/esg'
     | '/hk'
     | '/lab'
     | '/map'
@@ -138,6 +157,7 @@ export interface FileRouteTypes {
     | '/program'
     | '/queue'
     | '/rules'
+    | '/train'
     | '/work'
     | '/workshop'
     | '/issuer/$id'
@@ -145,6 +165,7 @@ export interface FileRouteTypes {
   to:
     | '/'
     | '/closer'
+    | '/esg'
     | '/hk'
     | '/lab'
     | '/map'
@@ -152,6 +173,7 @@ export interface FileRouteTypes {
     | '/program'
     | '/queue'
     | '/rules'
+    | '/train'
     | '/work'
     | '/workshop'
     | '/issuer/$id'
@@ -159,6 +181,7 @@ export interface FileRouteTypes {
     | '__root__'
     | '/'
     | '/closer'
+    | '/esg'
     | '/hk'
     | '/lab'
     | '/map'
@@ -166,6 +189,7 @@ export interface FileRouteTypes {
     | '/program'
     | '/queue'
     | '/rules'
+    | '/train'
     | '/work'
     | '/workshop'
     | '/issuer/$id'
@@ -174,6 +198,7 @@ export interface FileRouteTypes {
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   CloserRoute: typeof CloserRoute
+  EsgRoute: typeof EsgRoute
   HkRoute: typeof HkRoute
   LabRoute: typeof LabRoute
   MapRoute: typeof MapRoute
@@ -181,6 +206,7 @@ export interface RootRouteChildren {
   ProgramRoute: typeof ProgramRoute
   QueueRoute: typeof QueueRoute
   RulesRoute: typeof RulesRoute
+  TrainRoute: typeof TrainRoute
   WorkRoute: typeof WorkRoute
   WorkshopRoute: typeof WorkshopRoute
   IssuerIdRoute: typeof IssuerIdRoute
@@ -200,6 +226,13 @@ declare module '@tanstack/react-router' {
       path: '/closer'
       fullPath: '/closer'
       preLoaderRoute: typeof CloserRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/esg': {
+      id: '/esg'
+      path: '/esg'
+      fullPath: '/esg'
+      preLoaderRoute: typeof EsgRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/hk': {
@@ -251,6 +284,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof RulesRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/train': {
+      id: '/train'
+      path: '/train'
+      fullPath: '/train'
+      preLoaderRoute: typeof TrainRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/work': {
       id: '/work'
       path: '/work'
@@ -278,6 +318,7 @@ declare module '@tanstack/react-router' {
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   CloserRoute: CloserRoute,
+  EsgRoute: EsgRoute,
   HkRoute: HkRoute,
   LabRoute: LabRoute,
   MapRoute: MapRoute,
@@ -285,6 +326,7 @@ const rootRouteChildren: RootRouteChildren = {
   ProgramRoute: ProgramRoute,
   QueueRoute: QueueRoute,
   RulesRoute: RulesRoute,
+  TrainRoute: TrainRoute,
   WorkRoute: WorkRoute,
   WorkshopRoute: WorkshopRoute,
   IssuerIdRoute: IssuerIdRoute,

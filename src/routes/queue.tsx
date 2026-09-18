@@ -10,6 +10,7 @@ import { maxIdentityAbsRel, maxStrictAbsRel } from "@/lib/goki/rules";
 import { evaluateGate, VERDICT_LABEL, verdictTone, type Verdict } from "@/lib/goki/verdict";
 import type { ScoredIssuer } from "@/lib/goki/types";
 import { cn } from "@/lib/cn";
+import { useDesk } from "@/lib/goki/desk-store";
 
 export const Route = createFileRoute("/queue")({ component: QueuePage });
 
@@ -19,6 +20,7 @@ function gateOf(s: ScoredIssuer): Verdict {
 
 function QueuePage() {
   useMapIntake((s) => s.writes);
+  const setTicker = useDesk((s) => s.setTicker);
   const rows = getHkScored();
   const nBlock = rows.filter((r) => gateOf(r) === "unresolved" || gateOf(r) === "unable").length;
   const nInc = rows.filter((r) => gateOf(r) === "incomplete").length;
@@ -90,6 +92,7 @@ function QueuePage() {
                         <Link
                           to="/"
                           search={{ ticker: s.issuer.ticker }}
+                          onClick={() => setTicker(s.issuer.ticker)}
                           className="font-medium hover:text-forest"
                         >
                           {s.issuer.name}
@@ -101,6 +104,15 @@ function QueuePage() {
                           className="text-xs text-muted hover:text-forest"
                         >
                           底稿
+                        </Link>
+                        <span className="mx-2 text-rule">·</span>
+                        <Link
+                          to="/esg"
+                          search={{ ticker: s.issuer.ticker }}
+                          onClick={() => setTicker(s.issuer.ticker)}
+                          className="text-xs text-muted hover:text-forest"
+                        >
+                          ESG
                         </Link>
                       </td>
                       <td className="px-3 py-2.5 text-ink-soft">

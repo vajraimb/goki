@@ -18,8 +18,10 @@
     "smoke:gate": "node --experimental-strip-types --import ./scripts/ts-ext.mjs --test scripts/goki-gate-smoke.mjs",
     "smoke:tcl": "node --experimental-strip-types --import ./scripts/ts-ext.mjs --test scripts/goki-tcl-smoke.mjs",
     "smoke:desk": "node --experimental-strip-types --import ./scripts/ts-ext.mjs --test scripts/goki-desk-smoke.mjs",
+    "smoke:esg": "node --experimental-strip-types --import ./scripts/ts-ext.mjs --test scripts/goki-esg-smoke.mjs",
+    "smoke:train": "node --experimental-strip-types --import ./scripts/ts-ext.mjs --test scripts/goki-train-smoke.mjs",
     "check:auth": "node scripts/check-auth-invariant.mjs",
-    "test": "npm run smoke:gate && npm run smoke:tcl && npm run smoke:desk && node --test 'scripts/**/*.test.mjs' && node --experimental-strip-types --test src/lib/app-data/app-data.test.ts src/lib/app-data/readiness-schedule.test.ts src/lib/auth/gate-identity.test.ts src/lib/auth/sign-in-gate.test.ts",
+    "test": "npm run smoke:gate && npm run smoke:tcl && npm run smoke:desk && npm run smoke:esg && npm run smoke:train && node --test 'scripts/**/*.test.mjs' && node --experimental-strip-types --test src/lib/app-data/app-data.test.ts src/lib/app-data/readiness-schedule.test.ts src/lib/auth/gate-identity.test.ts src/lib/auth/sign-in-gate.test.ts",
     "lint": "eslint .",
     "format": "prettier --write ."
   },

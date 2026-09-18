@@ -5,11 +5,12 @@ import type { Gate } from "../verdict";
 import type { PubCheck } from "../pub";
 import type { VouchCheck } from "../vouch";
 import type { Filing } from "../filings";
+import type { EsgCheck } from "../esg";
 
 export type StepStatus = "pass" | "fail" | "unable" | "pending" | "skip" | "review";
 
 export interface ProvenanceSource {
-  kind: "mapping" | "filing" | "note" | "model" | "gate" | "pub";
+  kind: "mapping" | "filing" | "note" | "model" | "gate" | "pub" | "esg";
   label: string;
   ticker?: string;
   url?: string;
@@ -53,6 +54,7 @@ export interface TclRuntime {
   pub?: PubCheck[];
   vouch?: VouchCheck[];
   filings?: Filing[];
+  esg?: EsgCheck[];
   advisory?: { name: string; band: string };
   awaitingReview: boolean;
   escalations: string[];

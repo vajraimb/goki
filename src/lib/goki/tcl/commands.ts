@@ -5,6 +5,7 @@ import { vouchIssuer } from "../vouch";
 import { filingsFor, issuerYearEnd, FILING_KIND_LABEL } from "../filings";
 import { evaluateMainRules, noteRulesFor, packOf, PACK_LABEL } from "../packs";
 import { classifyGaps } from "../gaps";
+import { classifyEsg, esgSet, type EsgCheck } from "../esg";
 import { bandIssuer } from "../materiality-net";
 import { totalAssets, totalLE } from "../rules";
 import { ctxOf } from "../amount";
@@ -15,6 +16,45 @@ const VERIFY_CODES: Record<string, string[]> = {
   cash_flow: ["R02", "R06"],
   notes: [],
 };
+
+const ESG_VERIFY: Record<string, string[]> = {
+  file_set: ["E01", "E05"],
+  language: ["E02"],
+  sync: ["E03", "E04", "E12"],
+  climate: ["E07", "E08", "E09"],
+  social: ["E10"],
+  governance: ["E06", "E11"],
+};
+
+function esgOf(rt: TclRuntime): EsgCheck[] {
+  if (!rt.esg) rt.esg = esgSet(rt.issuer);
+  return rt.esg;
+}
+
+function esgStatus(s: EsgCheck["status"]): StepStatus {
+  if (s === "pass") return "pass";
+  if (s === "pending" || s === "unmapped") return "pending";
+  if (s === "missing") return "unable";
+  return "fail";
+}
+
+function refreshEsgCounts(rt: TclRuntime) {
+  const checks = esgOf(rt);
+  const fileOpen = checks.filter((c) => c.status === "missing" || c.status === "mismatch").length;
+  const unmapped = checks.filter((c) => c.status === "unmapped").length;
+  const pending = checks.filter((c) => c.status === "pending").length;
+  rt.vars.set("anomalies", String(fileOpen));
+  rt.vars.set("blocking", fileOpen > 0 ? "1" : "0");
+  let verdict = "pass";
+  if (fileOpen) verdict = "unresolved";
+  else if (unmapped || pending) verdict = "incomplete";
+  rt.vars.set("verdict", verdict);
+  let confidence = 0.96;
+  if (pending) confidence = Math.min(confidence, 0.7);
+  if (unmapped) confidence = Math.min(confidence, 0.62);
+  if (fileOpen) confidence = Math.min(confidence, 0.38);
+  rt.vars.set("confidence", confidence.toFixed(2));
+}
 
 function gateOf(rt: TclRuntime) {
   if (!rt.gate) rt.gate = evaluateGate(rt.issuer);
@@ -81,6 +121,12 @@ function mappingSource(rt: TclRuntime): ProvenanceSource {
 }
 
 export const COMMANDS: CommandTable = {
+  esg_report(rt, args, cmd) {
+    if (args.length !== 1) throw new TclRuntimeError(cmd.line, "esg_report needs a body");
+    const body = cmd.words[1]!;
+    evalScript(body.raw, rt, body.line);
+  },
+
   annual_report(rt, args, cmd) {
     if (args.length !== 1) throw new TclRuntimeError(cmd.line, "annual_report needs a body");
     const body = cmd.words[1]!;
@@ -157,6 +203,25 @@ export const COMMANDS: CommandTable = {
 
   verify(rt, args, cmd) {
     const target = args[0];
+    const esgCodes = ESG_VERIFY[target ?? ""];
+    if (esgCodes) {
+      const checks = esgOf(rt).filter((c) => esgCodes.includes(c.id));
+      let status: StepStatus = "pass";
+      for (const c of checks) status = worstStatus(status, esgStatus(c.status));
+      const open = checks.filter((c) => c.status !== "pass");
+      addStep(rt, {
+        line: cmd.line,
+        cmd: "verify",
+        args,
+        impl: "esgSet",
+        status,
+        note: open.length ? open.map((c) => `${c.id} ${c.status}`).join(" · ") : `${target} 闭合`,
+        sources: [{ kind: "esg", label: target ?? "esg", ticker: rt.issuer.ticker }],
+        compared: Object.fromEntries(checks.map((c) => [c.id, c.status])),
+      });
+      refreshEsgCounts(rt);
+      return;
+    }
     if (target === "publication_set") {
       const pub = pubOf(rt);
       let status: StepStatus = "pass";
@@ -248,7 +313,30 @@ export const COMMANDS: CommandTable = {
   },
 
   classify(rt, args, cmd) {
-    if (args[0] !== "gaps") throw new TclRuntimeError(cmd.line, "classify gaps is the only registered target");
+    if (args[0] === "esg") {
+      const report = classifyEsg(rt.issuer);
+      rt.vars.set("open", String(report.open));
+      rt.vars.set("unmapped", String(report.unmapped));
+      rt.vars.set("unwired", String(report.unwired));
+      const bits = [
+        report.file ? `披露 ${report.file}` : null,
+        report.unmapped ? `映射未齐 ${report.unmapped}` : null,
+        report.unwired ? `未接线 ${report.unwired}` : null,
+      ].filter(Boolean);
+      addStep(rt, {
+        line: cmd.line,
+        cmd: "classify",
+        args,
+        impl: "classifyEsg",
+        status: report.blocksPublish ? "fail" : report.projectIncomplete ? "pending" : "pass",
+        note: bits.length ? bits.join(" · ") : "无开口",
+        sources: [{ kind: "esg", label: "gap origin", ticker: rt.issuer.ticker }],
+        compared: { file: report.file, unmapped: report.unmapped, unwired: report.unwired },
+      });
+      refreshEsgCounts(rt);
+      return;
+    }
+    if (args[0] !== "gaps") throw new TclRuntimeError(cmd.line, "classify gaps or classify esg");
     const report = classifyGaps(rt.issuer);
     rt.vars.set("open", String(report.open));
     rt.vars.set("unmapped", String(report.unmapped));
@@ -342,6 +430,19 @@ export const COMMANDS: CommandTable = {
       return;
     }
     if (who === "disclosure_specialist") {
+      if (rt.esg) {
+        const open = rt.esg.filter((c) => c.status === "mismatch" || c.status === "missing");
+        addStep(rt, {
+          line: cmd.line,
+          cmd: "delegate",
+          args,
+          impl: "esgSet (advisory)",
+          status: open.length ? "review" : "pass",
+          note: open.length ? open.map((c) => `${c.id} ${c.status}`).join(" · ") : "ESG 文件无开口",
+          sources: [{ kind: "esg", label: "E file set", ticker: rt.issuer.ticker }],
+        });
+        return;
+      }
       const pub = pubOf(rt);
       const open = pub.filter((c) => c.status === "mismatch" || c.status === "missing");
       addStep(rt, {
@@ -358,7 +459,23 @@ export const COMMANDS: CommandTable = {
     throw new TclRuntimeError(cmd.line, `delegate ${who} is not a registered specialist`);
   },
 
-  judge(rt, _args, cmd) {
+  judge(rt, args, cmd) {
+    if (args[0] === "esg") {
+      refreshEsgCounts(rt);
+      const checks = esgOf(rt);
+      const fileOpen = checks.filter((c) => c.status === "missing" || c.status === "mismatch");
+      addStep(rt, {
+        line: cmd.line,
+        cmd: "judge",
+        args,
+        impl: "esgSet; no financial identities",
+        status: fileOpen.length ? "fail" : rt.vars.get("verdict") === "pass" ? "pass" : "pending",
+        note: `ESG ${rt.vars.get("verdict")} · 文件开口 ${fileOpen.length} · 置信 ${rt.vars.get("confidence")}`,
+        sources: [{ kind: "esg", label: "esgSet", ticker: rt.issuer.ticker }],
+        compared: { verdict: rt.vars.get("verdict") ?? "", fileOpen: fileOpen.length },
+      });
+      return;
+    }
     refreshCounts(rt);
     const gate = gateOf(rt);
     const pub = pubOf(rt);
@@ -409,6 +526,35 @@ export const COMMANDS: CommandTable = {
   },
 
   report(rt, _args, cmd) {
+    if (rt.esg) {
+      const checks = esgOf(rt);
+      const findings: Finding[] = [];
+      let n = 0;
+      for (const c of checks) {
+        if (c.status === "pass") continue;
+        n += 1;
+        findings.push({
+          id: `F${String(n).padStart(2, "0")}`,
+          title: `${c.id} ${c.label}`,
+          status: esgStatus(c.status),
+          note: c.note,
+          steps: rt.steps.filter((s) => s.cmd === "verify").map((s) => s.id),
+          sources: c.files.filter((f) => f.url).map((f) => ({ kind: "filing" as const, label: f.essTitle, url: f.url })),
+        });
+      }
+      rt.findings = findings;
+      rt.reported = true;
+      addStep(rt, {
+        line: cmd.line,
+        cmd: "report",
+        args: [],
+        impl: "esg findings",
+        status: rt.vars.get("verdict") === "unresolved" ? "fail" : rt.vars.get("verdict") === "pass" ? "pass" : "pending",
+        note: `ESG 发现 ${findings.length} 条 · ${rt.vars.get("verdict")}`,
+        sources: [{ kind: "esg", label: "esgSet", ticker: rt.issuer.ticker }],
+      });
+      return;
+    }
     const gate = gateOf(rt);
     const pub = pubOf(rt);
     const vouch = vouchOf(rt);

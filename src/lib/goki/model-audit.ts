@@ -2,6 +2,8 @@ import { buildHkIssuers } from "./hk-bluechips";
 import { scoreComplete } from "./complete-net";
 import { estimatesFor } from "./models";
 import { bandIssuer } from "./materiality-net";
+import { scoreEsgNet } from "./esg-net";
+import { titleHoldout } from "./title-net";
 import { evaluateMainRules } from "./packs";
 import { guessPack } from "./pack-net";
 import { evaluateGate, gateToBand } from "./verdict";
@@ -65,6 +67,16 @@ export function auditModelsLive(issuers: Issuer[] = buildHkIssuers()): ModelLive
     }
   }
 
+  let esgHit = 0;
+  let esgFalseClear = 0;
+  for (const iss of issuers) {
+    const s = scoreEsgNet(iss);
+    if (s.ok) esgHit++;
+    if (s.truth === "hold" && s.label === "files_ok") esgFalseClear++;
+  }
+  const title = titleHoldout();
+  const esgAcc = rate(esgHit, n);
+
   const packAcc = rate(packHit, n);
   const matAcc = rate(matHit, n);
   const prec = completeTp + completeFp === 0 ? 0 : completeTp / (completeTp + completeFp);
@@ -110,6 +122,30 @@ export function auditModelsLive(issuers: Issuer[] = buildHkIssuers()): ModelLive
       metricLabel: "已披露吻合",
       metric: estAcc,
       detail: estN ? `${estAgree}/${estN} 条与已披露相近` : "本队列无估计样本",
+    },
+    {
+      id: "esg-net",
+      name: "ESG-Net",
+      usable: esgAcc >= 8 / 11 && esgFalseClear === 0,
+      why:
+        esgAcc >= 8 / 11 && esgFalseClear === 0
+          ? "ESG 分诊与目录规则一致，没有假通过。可上咨询带。"
+          : "实报分诊不够，或把文件开口判成可发。ESG 台继续走 esgSet。",
+      metricLabel: "11 家命中",
+      metric: esgAcc,
+      detail: `${esgHit}/${n} · 假通过 ${esgFalseClear}`,
+    },
+    {
+      id: "title-net",
+      name: "Title-Net",
+      usable: title.acc >= 0.85 && title.falseKind === 0,
+      why:
+        title.acc >= 0.85 && title.falseKind === 0
+          ? "真实 ESS 标题种类可用。只提示，不改目录。"
+          : "标题种类不够稳，种类检查继续走正则。",
+      metricLabel: "目录命中",
+      metric: title.acc,
+      detail: `${title.hit}/${title.n}`,
     },
     {
       id: "closer",

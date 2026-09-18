@@ -5,6 +5,8 @@ import { ensureMapNet, getMapNet, MAP_IN, MAP_TARGETS } from "./map-net";
 import { ensureMateriality, getMateriality, MAT_IN } from "./materiality-net";
 import { ensureUnitNet, getUnitNet, UNIT_IN } from "./unit-net";
 import { getPackNet, guessPack } from "./pack-net";
+import { ESG_NET_IN, getEsgNet } from "./esg-net";
+import { TITLE_NET_IN, getTitleNet } from "./title-net";
 import type { CompletenessScore, EstimateScore, Issuer, Metrics, PackGuess, RulePack } from "./types";
 import { PACK_LABEL } from "./types";
 
@@ -36,6 +38,8 @@ export function ensureAllModels(): ModelCatalog {
   const mapNet = ensureMapNet();
   const materiality = ensureMateriality();
   const unitNet = ensureUnitNet();
+  const esgNet = getEsgNet();
+  const titleNet = getTitleNet();
   const cards: ModelCard[] = [
     {
       id: "map-net",
@@ -64,6 +68,34 @@ export function ensureAllModels(): ModelCatalog {
       checksum: materiality.checksum,
       trainMs: materiality.trainMs,
       ocaml: "ocaml/bin/materiality.ml",
+    },
+    {
+      id: "esg-net",
+      name: "ESG-Net",
+      nameEn: "ESG triage",
+      role: "ESG 检查向量 → 文件开口 / 底稿未齐 / 文件已过。不填排放，不进 ESG 门禁。",
+      arch: `${ESG_NET_IN} → 16 ReLU → 3 softmax`,
+      inDim: ESG_NET_IN,
+      params: esgNet.paramCount,
+      metricLabel: "test acc",
+      metric: esgNet.acc,
+      checksum: esgNet.checksum,
+      trainMs: esgNet.trainMs,
+      ocaml: "ocaml/bin/esg_net.ml",
+    },
+    {
+      id: "title-net",
+      name: "Title-Net",
+      nameEn: "ESS title kind",
+      role: "ESS 标题 + 文件名 → 年报 / 业绩 / ESG / 澄清。不改目录。",
+      arch: `${TITLE_NET_IN} → 12 ReLU → 4 softmax`,
+      inDim: TITLE_NET_IN,
+      params: titleNet.paramCount,
+      metricLabel: "test acc",
+      metric: titleNet.acc,
+      checksum: titleNet.checksum,
+      trainMs: titleNet.trainMs,
+      ocaml: "ocaml/bin/title_net.ml",
     },
     {
       id: "unit-net",

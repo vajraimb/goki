@@ -124,7 +124,7 @@ export function signReview(run: ProgramRun, by: string, note: string): ProgramRu
 
 export function asToolCalls(run: ProgramRun): JsonToolCall[] {
   return run.steps
-    .filter((s) => s.cmd !== "parallel" && s.cmd !== "annual_report")
+    .filter((s) => s.cmd !== "parallel" && s.cmd !== "annual_report" && s.cmd !== "esg_report")
     .map((s) => ({
       tool: s.cmd,
       args: Object.fromEntries(s.args.map((a, i) => [i === 0 ? "target" : `arg${i}`, a])),

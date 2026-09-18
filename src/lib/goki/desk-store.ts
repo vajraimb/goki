@@ -40,11 +40,13 @@ const safeStorage = {
 interface DeskState {
   ticker: string;
   signs: Record<string, DeskSign>;
+  esgSigns: Record<string, DeskSign>;
   tickets: Ticket[];
   verifier: string;
   setTicker: (ticker: string) => void;
   setVerifier: (verifier: string) => void;
   putSign: (sign: DeskSign) => void;
+  putEsgSign: (sign: DeskSign) => void;
   clearSign: (ticker: string) => void;
   putTicket: (ticket: Ticket) => void;
 }
@@ -54,11 +56,13 @@ export const useDesk = create<DeskState>()(
     (set) => ({
       ticker: "00005",
       signs: {},
+      esgSigns: {},
       tickets: [],
       verifier: "",
       setTicker: (ticker) => set({ ticker }),
       setVerifier: (verifier) => set({ verifier }),
       putSign: (sign) => set((s) => ({ signs: { ...s.signs, [sign.ticker]: sign } })),
+      putEsgSign: (sign) => set((s) => ({ esgSigns: { ...s.esgSigns, [sign.ticker]: sign } })),
       clearSign: (ticker) =>
         set((s) => {
           const next = { ...s.signs };
@@ -70,7 +74,13 @@ export const useDesk = create<DeskState>()(
     {
       name: "goki-desk",
       storage: createJSONStorage(() => safeStorage),
-      partialize: (s) => ({ ticker: s.ticker, signs: s.signs, tickets: s.tickets, verifier: s.verifier }),
+      partialize: (s) => ({
+        ticker: s.ticker,
+        signs: s.signs,
+        esgSigns: s.esgSigns,
+        tickets: s.tickets,
+        verifier: s.verifier,
+      }),
     },
   ),
 );
